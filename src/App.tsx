@@ -273,6 +273,40 @@ export const App: React.FC = () => {
     }
   };
 
+  // Qualify lead via deterministic explainable ICP scoring engine
+  const handleQualifyLead = async (leadId: string) => {
+    try {
+      const { qualification, lead: updatedLead } = await api.qualifyLead(leadId);
+      setLeads((prev) => {
+        const next = prev.map((l) => (l.id === leadId ? updatedLead : l));
+        storage.saveLeads(next);
+        return next;
+      });
+
+      if (selectedLead && selectedLead.id === leadId) {
+        setSelectedLead(updatedLead);
+      }
+
+      const [freshActivities, freshSummary] = await Promise.all([
+        api.getActivities({ limit: 20 }).catch(() => null),
+        api.getPipelineSummary().catch(() => null),
+      ]);
+      if (freshActivities) {
+        setActivities(freshActivities);
+        storage.saveActivities(freshActivities);
+      }
+      if (freshSummary) {
+        setPipelineSummary(freshSummary);
+      }
+
+      showNotice(`Lead qualified: ${qualification.overallScore}/100 (${qualification.tier.toUpperCase()})`);
+      return qualification;
+    } catch (err: any) {
+      setErrorMessage(`Failed to qualify lead: ${err.message}`);
+      throw err;
+    }
+  };
+
   // Save updated ICP profile with single-active guarantee
   const handleSaveProfile = async (updatedProfile: IcpProfile) => {
     try {
@@ -573,7 +607,7 @@ export const App: React.FC = () => {
         </main>
       </div>
 
-      {/* Lead Detail Modal with Stage Selector, Editable Notes, and Deletion */}
+      {/* Lead Detail Modal with Stage Selector, Editable Notes, Deletion, and ICP Scoring */}
       <LeadDetailModal
         key={selectedLead ? selectedLead.id : 'empty'}
         lead={selectedLead}
@@ -582,6 +616,7 @@ export const App: React.FC = () => {
         onUpdateStatus={handleUpdateStatus}
         onUpdateNotes={handleUpdateNotes}
         onDeleteLead={handleDeleteLead}
+        onQualifyLead={handleQualifyLead}
       />
     </div>
   );

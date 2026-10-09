@@ -40,6 +40,8 @@ export function leadEntityToDto(entity: LeadEntity): LeadDTO {
     triggers: safeParseJson<string[]>(entity.triggers, []),
     notes: entity.notes || '',
     lastActive: entity.last_active || '',
+    qualificationBreakdown: safeParseJson<any>(entity.qualification_breakdown, null),
+    qualifiedAt: entity.qualified_at || null,
     createdAt: entity.created_at,
     updatedAt: entity.updated_at,
   };
@@ -60,6 +62,12 @@ export function icpEntityToDto(entity: IcpProfileEntity): IcpProfileDTO {
     techStack: safeParseJson<string[]>(entity.tech_stack, []),
     minScoreThreshold: entity.min_score_threshold,
     negativeKeywords: safeParseJson<string[]>(entity.negative_keywords, []),
+    scoringWeights: safeParseJson<any>(entity.scoring_weights, {
+      industry: 30,
+      roleSeniority: 25,
+      intentTriggers: 30,
+      techStack: 15,
+    }),
     isActive: Boolean(entity.is_active),
     createdAt: entity.created_at,
     updatedAt: entity.updated_at,

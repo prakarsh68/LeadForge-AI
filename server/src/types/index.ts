@@ -21,6 +21,8 @@ export interface LeadEntity {
   triggers: string; // JSON string
   notes?: string;
   last_active?: string;
+  qualification_breakdown?: string | null;
+  qualified_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -39,9 +41,59 @@ export interface IcpProfileEntity {
   tech_stack: string; // JSON string
   min_score_threshold: number;
   negative_keywords: string; // JSON string
+  scoring_weights?: string; // JSON string
   is_active: number; // 0 or 1
   created_at: string;
   updated_at: string;
+}
+
+export interface LeadQualificationEntity {
+  id: string;
+  lead_id: string;
+  icp_profile_id: string;
+  score: number;
+  tier: LeadScoreTier;
+  is_qualified: number;
+  breakdown: string; // JSON string of CriterionEvaluation[]
+  reasons: string;   // JSON string of string[]
+  evaluated_at: string;
+  created_at: string;
+}
+
+export interface IcpScoringWeights {
+  industry: number;
+  roleSeniority: number;
+  intentTriggers: number;
+  techStack: number;
+}
+
+export type EvaluationStatus = 'match' | 'partial' | 'mismatch' | 'no_data';
+
+export interface CriterionEvaluation {
+  id: 'industry' | 'company_size' | 'role_seniority' | 'buying_triggers' | 'tech_stack' | 'negative_keywords';
+  name: string;
+  weight: number;
+  pointsEarned: number;
+  status: EvaluationStatus;
+  evidence: string;
+  targetCriteria: string;
+  reason: string;
+}
+
+export interface QualificationResult {
+  leadId: string;
+  leadName: string;
+  company: string;
+  icpProfileId: string;
+  icpProfileName: string;
+  overallScore: number;
+  tier: LeadScoreTier;
+  isQualified: boolean;
+  threshold: number;
+  criteria: CriterionEvaluation[];
+  summaryReasons: string[];
+  disclaimers: string;
+  evaluatedAt: string;
 }
 
 export interface KnowledgeDocumentEntity {
@@ -99,6 +151,8 @@ export interface LeadDTO {
   triggers: string[];
   notes: string;
   lastActive: string;
+  qualificationBreakdown?: QualificationResult | null;
+  qualifiedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -117,6 +171,7 @@ export interface IcpProfileDTO {
   techStack: string[];
   minScoreThreshold: number;
   negativeKeywords: string[];
+  scoringWeights?: IcpScoringWeights;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

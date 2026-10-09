@@ -7,6 +7,7 @@ import type {
   Opportunity,
   PipelineSummary,
   ApiResponse,
+  QualificationResult,
 } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
@@ -121,6 +122,16 @@ export const api = {
     await request<void>(`/api/leads/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     });
+  },
+
+  async qualifyLead(id: string): Promise<{ qualification: QualificationResult; lead: Lead }> {
+    return request<{ qualification: QualificationResult; lead: Lead }>(`/api/leads/${encodeURIComponent(id)}/qualify`, {
+      method: 'POST',
+    });
+  },
+
+  async getLeadQualification(id: string): Promise<QualificationResult> {
+    return request<QualificationResult>(`/api/leads/${encodeURIComponent(id)}/qualification`);
   },
 
   // ICP Profiles API
@@ -268,3 +279,4 @@ export const api = {
     });
   },
 };
+

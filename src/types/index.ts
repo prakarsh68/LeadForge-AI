@@ -23,8 +23,39 @@ export interface Lead {
   triggers: string[];
   notes: string;
   lastActive: string;
+  qualificationBreakdown?: QualificationResult | null;
+  qualifiedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export type EvaluationStatus = 'match' | 'partial' | 'mismatch' | 'no_data';
+
+export interface CriterionEvaluation {
+  id: 'industry' | 'company_size' | 'role_seniority' | 'buying_triggers' | 'tech_stack' | 'negative_keywords';
+  name: string;
+  weight: number;
+  pointsEarned: number;
+  status: EvaluationStatus;
+  evidence: string;
+  targetCriteria: string;
+  reason: string;
+}
+
+export interface QualificationResult {
+  leadId: string;
+  leadName: string;
+  company: string;
+  icpProfileId: string;
+  icpProfileName: string;
+  overallScore: number;
+  tier: LeadScoreTier;
+  isQualified: boolean;
+  threshold: number;
+  criteria: CriterionEvaluation[];
+  summaryReasons: string[];
+  disclaimers: string;
+  evaluatedAt: string;
 }
 
 export interface ActivityItem {

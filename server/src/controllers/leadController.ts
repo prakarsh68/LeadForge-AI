@@ -105,5 +105,40 @@ export const leadController = {
       next(error);
     }
   },
+
+  qualify(req: Request, res: Response, _next: NextFunction): void {
+    try {
+      const { id } = req.params;
+      const result = leadService.qualify(id);
+      res.status(200).json({
+        success: true,
+        data: result,
+        message: 'Lead qualified successfully',
+      });
+    } catch (error: any) {
+      const isNotFound = error.message && error.message.includes('not found');
+      res.status(isNotFound ? 404 : 400).json({
+        success: false,
+        error: error.message || 'Failed to qualify lead',
+      });
+    }
+  },
+
+  getQualification(req: Request, res: Response, _next: NextFunction): void {
+    try {
+      const { id } = req.params;
+      const result = leadService.getQualification(id);
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error: any) {
+      const isNotFound = error.message && error.message.includes('not found');
+      res.status(isNotFound ? 404 : 400).json({
+        success: false,
+        error: error.message || 'Failed to retrieve lead qualification',
+      });
+    }
+  },
 };
 

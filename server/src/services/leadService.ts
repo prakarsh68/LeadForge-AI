@@ -1,5 +1,11 @@
 import { getDb } from '../db/database.js';
-import type { LeadEntity, LeadDTO, LeadStatus, LeadScoreTier } from '../types/index.js';
+import type {
+  LeadEntity,
+  LeadDTO,
+  LeadStatus,
+  LeadScoreTier,
+  QualificationResult,
+} from '../types/index.js';
 import { leadEntityToDto } from '../utils/serializers.js';
 import {
   isValidLeadStatus,
@@ -9,6 +15,8 @@ import {
   deriveTierFromScore,
 } from '../utils/validators.js';
 import { activityService } from './activityService.js';
+import { leadScoringService } from './leadScoringService.js';
+import { icpService } from './icpService.js';
 
 export interface LeadFilterOptions {
   search?: string;
@@ -394,6 +402,101 @@ export const leadService = {
 
     deleteTx();
     return true;
+  },
+
+  qualify(id: string): { qualification: QualificationResult; lead: LeadDTO } {
+    const db = getDb();
+    const lead = this.getById(id);
+    if (!lead) {
+      throw new Error(`Lead not found with id: ${id}`);
+    }
+
+    const activeIcp = icpService.getActive();
+    if (!activeIcp) {
+      throw new Error('No active ICP profile found. Please activate an ICP profile before qualifying leads.');
+    }
+
+    const qualification = leadScoringService.evaluateLead(lead, activeIcp);
+
+    const qualifyTx = db.transaction(() => {
+      // 1. Update lead score, tier, qualification_breakdown, qualified_at
+      db.prepare(`
+        UPDATE leads
+        SET score = ?,
+            tier = ?,
+            qualification_breakdown = ?,
+            qualified_at = ?,
+            updated_at = datetime('now')
+        WHERE id = ?
+      `).run(
+        qualification.overallScore,
+        qualification.tier,
+        JSON.stringify(qualification),
+        qualification.evaluatedAt,
+        id
+      );
+
+      // 2. Update linked opportunity confidence_score
+      db.prepare(`
+        UPDATE opportunities
+        SET confidence_score = ?,
+            updated_at = datetime('now')
+        WHERE lead_id = ?
+      `).run(qualification.overallScore, id);
+
+      // 3. Insert audit record into lead_qualifications
+      const qualId = `lq-${id}-${Date.now()}`;
+      db.prepare(`
+        INSERT INTO lead_qualifications (
+          id, lead_id, icp_profile_id, score, tier, is_qualified, breakdown, reasons, evaluated_at, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `).run(
+        qualId,
+        id,
+        activeIcp.id,
+        qualification.overallScore,
+        qualification.tier,
+        qualification.isQualified ? 1 : 0,
+        JSON.stringify(qualification.criteria),
+        JSON.stringify(qualification.summaryReasons),
+        qualification.evaluatedAt
+      );
+    });
+
+    qualifyTx();
+
+    // 4. Log activity
+    activityService.log(
+      'score',
+      'Lead Qualified via ICP Engine',
+      `${lead.name} (${lead.company}) qualified against "${activeIcp.name}" with score ${qualification.overallScore}/100 (${qualification.tier.toUpperCase()})`,
+      `${qualification.overallScore} Pts`
+    );
+
+    const updatedLead = this.getById(id);
+    if (!updatedLead) {
+      throw new Error('Failed to retrieve lead after qualification');
+    }
+
+    return {
+      qualification,
+      lead: updatedLead,
+    };
+  },
+
+  getQualification(id: string): QualificationResult {
+    const lead = this.getById(id);
+    if (!lead) {
+      throw new Error(`Lead not found with id: ${id}`);
+    }
+
+    if (lead.qualificationBreakdown) {
+      return lead.qualificationBreakdown;
+    }
+
+    // If not yet qualified, trigger qualification
+    const result = this.qualify(id);
+    return result.qualification;
   },
 };
 

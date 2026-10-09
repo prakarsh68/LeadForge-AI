@@ -25,6 +25,8 @@ export function initializeDatabase(customDb?: Database.Database): void {
       triggers TEXT NOT NULL DEFAULT '[]',
       notes TEXT DEFAULT '',
       last_active TEXT DEFAULT '',
+      qualification_breakdown TEXT DEFAULT NULL,
+      qualified_at TEXT DEFAULT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -47,6 +49,7 @@ export function initializeDatabase(customDb?: Database.Database): void {
       tech_stack TEXT NOT NULL DEFAULT '[]',
       min_score_threshold INTEGER NOT NULL DEFAULT 78,
       negative_keywords TEXT NOT NULL DEFAULT '[]',
+      scoring_weights TEXT NOT NULL DEFAULT '{"industry":30,"roleSeniority":25,"intentTriggers":30,"techStack":15}',
       is_active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -93,7 +96,38 @@ export function initializeDatabase(customDb?: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_opportunities_stage ON opportunities(stage);
     CREATE INDEX IF NOT EXISTS idx_opportunities_lead_id ON opportunities(lead_id);
+
+    CREATE TABLE IF NOT EXISTS lead_qualifications (
+      id TEXT PRIMARY KEY,
+      lead_id TEXT NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+      icp_profile_id TEXT NOT NULL REFERENCES icp_profiles(id) ON DELETE CASCADE,
+      score INTEGER NOT NULL,
+      tier TEXT NOT NULL CHECK(tier IN ('high', 'medium', 'low')),
+      is_qualified INTEGER NOT NULL DEFAULT 0,
+      breakdown TEXT NOT NULL,
+      reasons TEXT NOT NULL,
+      evaluated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_lead_qualifications_lead_id ON lead_qualifications(lead_id);
   `);
+
+  // Safe additive migrations for existing tables
+  const leadsColumns = db.prepare('PRAGMA table_info(leads)').all() as Array<{ name: string }>;
+  const leadColNames = leadsColumns.map((c) => c.name);
+  if (!leadColNames.includes('qualification_breakdown')) {
+    db.exec('ALTER TABLE leads ADD COLUMN qualification_breakdown TEXT DEFAULT NULL;');
+  }
+  if (!leadColNames.includes('qualified_at')) {
+    db.exec('ALTER TABLE leads ADD COLUMN qualified_at TEXT DEFAULT NULL;');
+  }
+
+  const icpColumns = db.prepare('PRAGMA table_info(icp_profiles)').all() as Array<{ name: string }>;
+  const icpColNames = icpColumns.map((c) => c.name);
+  if (!icpColNames.includes('scoring_weights')) {
+    db.exec('ALTER TABLE icp_profiles ADD COLUMN scoring_weights TEXT NOT NULL DEFAULT \'{"industry":30,"roleSeniority":25,"intentTriggers":30,"techStack":15}\';');
+  }
 
   // Seed default ICP profile if none exists
   const icpCount = (db.prepare('SELECT COUNT(*) as count FROM icp_profiles').get() as { count: number }).count;
