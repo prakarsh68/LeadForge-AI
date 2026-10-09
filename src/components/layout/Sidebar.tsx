@@ -55,56 +55,56 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Mobile Backdrop */}
       {isOpenMobile && (
         <div
-          className="fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm lg:hidden transition-opacity"
+          className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm lg:hidden transition-opacity"
           onClick={onCloseMobile}
         />
       )}
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-800/80 bg-slate-900/95 backdrop-blur-xl transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-200 bg-white transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 shadow-xs ${
           isOpenMobile ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Brand Header */}
-        <div className="flex h-18 items-center justify-between px-5 border-b border-slate-800/80 bg-slate-900/60">
+        <div className="flex h-18 items-center justify-between px-5 border-b border-slate-200/90 bg-white">
           <button
             type="button"
             onClick={() => {
               onSelectView('dashboard');
               onCloseMobile();
             }}
-            className="group flex items-center gap-3 text-left cursor-pointer rounded-xl p-1.5 -ml-1 transition-all hover:bg-slate-800/60 focus:outline-none focus:ring-2 focus:ring-orange-500/30 active:scale-[0.98]"
+            className="group flex items-center gap-3 text-left cursor-pointer rounded-xl p-1.5 -ml-1 transition-all hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 active:scale-[0.98]"
             title="Go to Command Dashboard"
             aria-label="LeadForge AI Dashboard"
           >
-            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-b from-slate-800/90 to-slate-950/90 border border-slate-700/60 p-1.5 shadow-md shadow-orange-500/10 group-hover:border-orange-500/50 group-hover:shadow-orange-500/25 group-hover:scale-105 transition-all">
+            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-50 border border-slate-200/90 p-1.5 shadow-2xs group-hover:border-orange-500/40 group-hover:scale-105 transition-all">
               <img
                 src="/logo-icon.png"
                 alt="LeadForge AI Logo"
-                className="h-full w-full object-contain filter drop-shadow-md"
+                className="h-full w-full object-contain filter drop-shadow-2xs"
               />
               <div
-                className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-slate-900 bg-emerald-400 shadow-sm"
+                className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 shadow-xs"
                 title="System Online"
               />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-extrabold tracking-tight text-white text-lg font-[Plus_Jakarta_Sans] group-hover:text-orange-200 transition-colors">
-                  Lead<span className="bg-gradient-to-r from-orange-400 to-amber-300 bg-clip-text text-transparent">Forge</span>
+                <span className="font-extrabold tracking-tight text-slate-900 text-lg font-[Plus_Jakarta_Sans] group-hover:text-indigo-600 transition-colors">
+                  Lead<span className="bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">Forge</span>
                 </span>
-                <span className="rounded bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-300 border border-indigo-500/30">
+                <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700 border border-indigo-200/80">
                   AI
                 </span>
               </div>
-              <p className="text-[11px] font-medium text-slate-400 group-hover:text-slate-300 transition-colors">Autonomous Outbound</p>
+              <p className="text-[11px] font-medium text-slate-500 group-hover:text-slate-700 transition-colors">Autonomous Outbound</p>
             </div>
           </button>
 
           <button
             onClick={onCloseMobile}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white lg:hidden cursor-pointer"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 lg:hidden cursor-pointer"
             aria-label="Close sidebar"
           >
             <X className="h-5 w-5" />
@@ -114,7 +114,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Navigation Section */}
         <div className="flex-1 overflow-y-auto px-4 py-5 space-y-6">
           <div>
-            <div className="px-3 pb-2 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
+            <div className="px-3 pb-2 text-[11px] font-bold tracking-wider text-slate-400 uppercase">
               Core Platform
             </div>
             <nav className="space-y-1">
@@ -128,18 +128,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       onSelectView(item.id);
                       onCloseMobile();
                     }}
-                    className={`group relative flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-150 ${
+                    className={`group relative flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-150 cursor-pointer ${
                       isActive
-                        ? 'bg-gradient-to-r from-indigo-600/20 to-indigo-500/10 text-white font-semibold shadow-inner border border-indigo-500/30'
-                        : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+                        ? 'bg-indigo-50/80 text-indigo-900 font-semibold border border-indigo-200/80 shadow-2xs'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       <div
                         className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
                           isActive
-                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                            : 'bg-slate-800/80 text-slate-400 group-hover:bg-slate-800 group-hover:text-slate-200'
+                            ? 'bg-indigo-600 text-white shadow-xs'
+                            : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200/70 group-hover:text-slate-800'
                         }`}
                       >
                         <Icon className="h-4 w-4" />
@@ -152,15 +152,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <span
                           className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                             isActive
-                              ? 'bg-indigo-500/30 text-indigo-200 border border-indigo-400/30'
-                              : 'bg-slate-800 text-slate-400 group-hover:text-slate-300'
+                              ? 'bg-indigo-100 text-indigo-700 border border-indigo-200'
+                              : 'bg-slate-100 text-slate-600 border border-slate-200'
                           }`}
                         >
                           {item.badge}
                         </span>
                       )}
                       {isActive && (
-                        <ChevronRight className="h-4 w-4 text-indigo-400 animate-in fade-in" />
+                        <ChevronRight className="h-4 w-4 text-indigo-600 animate-in fade-in" />
                       )}
                     </div>
                   </button>
@@ -175,53 +175,53 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onSelectView('icp');
               onCloseMobile();
             }}
-            className="cursor-pointer rounded-xl border border-indigo-500/20 bg-gradient-to-br from-indigo-950/40 via-slate-900/60 to-slate-900/90 p-3.5 shadow-sm hover:border-indigo-500/40 transition-colors"
+            className="cursor-pointer rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 shadow-2xs hover:border-indigo-300 hover:bg-indigo-50/30 transition-all"
           >
             <div className="flex items-center justify-between pb-2">
-              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-indigo-300">
-                <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
+              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-indigo-700">
+                <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
                 Active ICP Profile
               </span>
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
             </div>
-            <p className="text-xs font-medium text-slate-200 truncate">
+            <p className="text-xs font-semibold text-slate-900 truncate">
               {icpProfile?.name || 'B2B SaaS Growth & Enterprise'}
             </p>
-            <div className="mt-2.5 flex items-center justify-between text-[11px] text-slate-400">
+            <div className="mt-2.5 flex items-center justify-between text-[11px] text-slate-500">
               <span>Fit Threshold:</span>
-              <span className="font-semibold text-emerald-400">
+              <span className="font-semibold text-emerald-700">
                 {icpProfile?.minScoreThreshold || 78}+ Score
               </span>
             </div>
-            <div className="mt-1 flex items-center justify-between text-[11px] text-slate-400">
+            <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
               <span>Audience Pool:</span>
-              <span className="font-semibold text-slate-200">~4,200 Accounts</span>
+              <span className="font-semibold text-slate-800">~4,200 Accounts</span>
             </div>
           </div>
 
           {/* AI Autonomous Engine Status */}
-          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3.5">
+          <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 Agent Engine
               </span>
-              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 Autonomous
               </span>
             </div>
             <div className="mt-2 space-y-1.5">
-              <div className="flex justify-between text-xs text-slate-400">
+              <div className="flex justify-between text-xs text-slate-600">
                 <span>Monthly Credits</span>
-                <span className="text-slate-200 font-semibold">842 / 1,000</span>
+                <span className="text-slate-900 font-semibold">842 / 1,000</span>
               </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-amber-500"
+                  className="h-full rounded-full bg-gradient-to-r from-indigo-600 to-indigo-400"
                   style={{ width: '84.2%' }}
                 />
               </div>
-              <p className="text-[10px] text-slate-400">
+              <p className="text-[10px] text-slate-500">
                 Resets in 12 days • High accuracy mode
               </p>
             </div>
@@ -229,19 +229,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Sidebar Footer User Info */}
-        <div className="border-t border-slate-800/80 p-4">
-          <div className="flex items-center gap-3 rounded-xl p-2 hover:bg-slate-800/50 transition-colors">
+        <div className="border-t border-slate-200/90 p-4 bg-white">
+          <div className="flex items-center gap-3 rounded-xl p-2 hover:bg-slate-50 transition-colors">
             <div className="relative">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-600 font-bold text-white text-xs">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 font-bold text-white text-xs shadow-xs">
                 PA
               </div>
-              <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-slate-900 bg-emerald-400" />
+              <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-white bg-emerald-500" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-slate-200 truncate">Prakarsh Awasthi</p>
-              <p className="text-[11px] text-slate-400 truncate">Growth Engineering</p>
+              <p className="text-xs font-semibold text-slate-900 truncate">Prakarsh Awasthi</p>
+              <p className="text-[11px] text-slate-500 truncate">Growth Engineering</p>
             </div>
-            <span title="Verified Workspace" className="text-indigo-400">
+            <span title="Verified Workspace" className="text-indigo-600">
               <ShieldCheck className="h-4 w-4" />
             </span>
           </div>

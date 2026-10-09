@@ -441,6 +441,61 @@ export const api = {
     });
   },
 
+  async getConnectorCapabilities(): Promise<Array<{
+    id: string;
+    name: string;
+    providerType: string;
+    capabilities: string[];
+    isConfigured: boolean;
+    requiredCredentials: string[];
+    healthStatus: string;
+    costModel: { perRecord: number; currency: string };
+    knownLimitations: string;
+    roleDescription: string;
+  }>> {
+    return request<any[]>('/api/discovery/capabilities');
+  },
+
+  async runDryRunDiscovery(params: {
+    domain: string;
+    limit?: number;
+    targetRoles?: string[];
+  }): Promise<{
+    isDryRun: true;
+    domain: string;
+    targetIcp: { id: string; name: string };
+    plannedOperations: Array<{ stage: string; action: string; provider: string; estimatedCost: number; status: string }>;
+    projectedYield: number;
+    projectedCost: number;
+    filteringFunnel: Array<{ stage: string; initial: number; surviving: number; dropReason?: string }>;
+    projectedCandidates: Array<{
+      fullName: string;
+      title: string;
+      email: string;
+      confidence: number;
+      estimatedScore: number;
+      tier: string;
+      signals: string[];
+    }>;
+    notes: string;
+  }> {
+    return request<any>('/api/discovery/dry-run', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  },
+
+  async cleanupDemoData(): Promise<{
+    cleanedCandidates: number;
+    cleanedJobs: number;
+    cleanedLeads: number;
+    cleanedOpportunities: number;
+  }> {
+    return request<any>('/api/discovery/cleanup-demo', {
+      method: 'POST',
+    });
+  },
+
   // Phase 5: Outreach Campaigns
   async getOutreachCampaigns(): Promise<OutreachCampaign[]> {
     return request<OutreachCampaign[]>('/api/outreach/campaigns');

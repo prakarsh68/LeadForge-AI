@@ -204,31 +204,31 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
   const getStatusBadge = (runStatus: string) => {
     switch (runStatus) {
       case 'completed':
-        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
       case 'running':
       case 'executing':
-        return 'bg-blue-500/10 text-blue-400 border-blue-500/30 animate-pulse';
+        return 'bg-blue-50 text-blue-700 border-blue-200 animate-pulse';
       case 'failed':
-        return 'bg-rose-500/10 text-rose-400 border-rose-500/30';
+        return 'bg-rose-50 text-rose-700 border-rose-200';
       case 'cancelled':
-        return 'bg-slate-500/10 text-slate-400 border-slate-500/30';
+        return 'bg-slate-100 text-slate-600 border-slate-200';
       default:
-        return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+        return 'bg-amber-50 text-amber-700 border-amber-200';
     }
   };
 
   const getStepStatusIcon = (stepStatus: string) => {
     switch (stepStatus) {
       case 'success':
-        return <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
+        return <CheckCircle2 className="w-4 h-4 text-emerald-600" />;
       case 'partial':
-        return <AlertTriangle className="w-4 h-4 text-amber-400" />;
+        return <AlertTriangle className="w-4 h-4 text-amber-600" />;
       case 'skipped':
         return <Clock className="w-4 h-4 text-slate-400" />;
       case 'failed':
-        return <AlertTriangle className="w-4 h-4 text-rose-400" />;
+        return <AlertTriangle className="w-4 h-4 text-rose-600" />;
       default:
-        return <Activity className="w-4 h-4 text-blue-400 animate-spin" />;
+        return <Activity className="w-4 h-4 text-blue-600 animate-spin" />;
     }
   };
 
@@ -236,72 +236,72 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
     <div className="space-y-6">
       {/* Toast Notice */}
       {notice && (
-        <div className="p-3 bg-purple-500/10 border border-purple-500/30 rounded-xl text-purple-300 text-sm flex items-center gap-2 animate-fade-in">
-          <CheckCircle2 className="w-4 h-4 text-purple-400 flex-shrink-0" />
+        <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-indigo-900 text-sm flex items-center gap-2 animate-fade-in">
+          <CheckCircle2 className="w-4 h-4 text-indigo-600 flex-shrink-0" />
           <span>{notice}</span>
         </div>
       )}
 
       {/* Feature Flag Warning if disabled */}
       {status && !status.enabled && (
-        <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-sm flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 mt-0.5 text-amber-400 flex-shrink-0" />
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-sm flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 mt-0.5 text-amber-600 flex-shrink-0" />
           <div>
-            <div className="font-semibold text-amber-200">Agentic Sourcing Orchestrator Disabled</div>
-            <p className="text-xs text-amber-300/80">
-              Set <code className="bg-amber-950 px-1 py-0.5 rounded text-amber-200">AGENTIC_SOURCING_ENABLED=true</code> in your environment to activate autonomous multi-tool planning and execution.
+            <div className="font-semibold text-amber-950">Agentic Sourcing Orchestrator Disabled</div>
+            <p className="text-xs text-amber-800 mt-0.5">
+              Set <code className="bg-amber-100 px-1 py-0.5 rounded text-amber-900 font-mono">AGENTIC_SOURCING_ENABLED=true</code> in your environment to activate autonomous multi-tool planning and execution.
             </p>
           </div>
         </div>
       )}
 
       {/* Header & Sub-Navigation */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 backdrop-blur-xl">
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center gap-1">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1">
                 <Sparkles className="w-3 h-3" />
                 Phase 6B
               </span>
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <Bot className="w-5 h-5 text-purple-400" />
+              <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <Bot className="w-5 h-5 text-indigo-600" />
                 Agentic Sourcing Orchestrator & Self-Optimization
               </h2>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-slate-500 mt-1">
               Autonomous multi-tool workflow execution, dynamic fallback routing, adaptive budget quotas, selective RAG research, and empirical learning from engagement outcomes.
             </p>
           </div>
 
           {/* Sub-view switcher */}
-          <div className="flex items-center gap-2 bg-slate-950/60 p-1.5 rounded-xl border border-slate-800">
+          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg border border-slate-200">
             <button
               onClick={() => setSubView('orchestrator')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                 subView === 'orchestrator'
-                  ? 'bg-purple-600 text-white shadow'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60 font-semibold'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Orchestrator Runs ({runs.length})
             </button>
             <button
               onClick={() => setSubView('weights')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                 subView === 'weights'
-                  ? 'bg-purple-600 text-white shadow'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60 font-semibold'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Learned Weights ({weights.length})
             </button>
             <button
               onClick={() => setSubView('experiments')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                 subView === 'experiments'
-                  ? 'bg-purple-600 text-white shadow'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60 font-semibold'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               A/B Benchmarks ({experiments.length})
@@ -309,7 +309,7 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
             <button
               onClick={loadAll}
               disabled={isLoading}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              className="p-1.5 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-200 transition-colors"
               title="Refresh"
             >
               <RotateCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
@@ -323,13 +323,13 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Column: Natural Language Intent & Run Trigger (5 cols) */}
           <div className="lg:col-span-5 space-y-6">
-            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-4">
+            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                  <Brain className="w-4 h-4 text-purple-400" />
+                <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                  <Brain className="w-4 h-4 text-indigo-600" />
                   Natural Language Campaign Intent
                 </h3>
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 font-medium">
                   Dual-Mode AI / Rule
                 </span>
               </div>
@@ -339,7 +339,7 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
                   value={rawIntent}
                   onChange={(e) => setRawIntent(e.target.value)}
                   rows={4}
-                  className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/50 resize-none font-sans"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-3 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none font-sans"
                   placeholder="Describe target companies, signals, roles, and constraints..."
                 />
               </div>
@@ -348,15 +348,15 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
                 <button
                   onClick={handleParseIntent}
                   disabled={isParsing || !rawIntent.trim()}
-                  className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  className="flex-1 py-2 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-medium text-slate-700 border border-slate-200 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
-                  <Sparkles className={`w-3.5 h-3.5 text-purple-400 ${isParsing ? 'animate-spin' : ''}`} />
+                  <Sparkles className={`w-3.5 h-3.5 text-indigo-600 ${isParsing ? 'animate-spin' : ''}`} />
                   {isParsing ? 'Parsing...' : 'Analyze Intent'}
                 </button>
                 <button
                   onClick={handleLaunchAgenticRun}
                   disabled={isLaunchingRun || !rawIntent.trim()}
-                  className="flex-1 py-2 px-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-xs font-semibold text-white shadow-lg shadow-purple-600/30 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  className="flex-1 py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white shadow-xs transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
                   <Play className={`w-3.5 h-3.5 ${isLaunchingRun ? 'animate-spin' : ''}`} />
                   {isLaunchingRun ? 'Executing Sourcing...' : 'Launch Agentic Run'}
@@ -365,36 +365,36 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
 
               {/* Parsed Intent Card */}
               {parsedIntent && (
-                <div className="p-3.5 bg-slate-950/70 border border-purple-500/20 rounded-xl space-y-2.5 text-xs animate-fade-in">
-                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-                    <span className="font-semibold text-purple-300">Parsed Sourcing Blueprint</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono">
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg space-y-2.5 text-xs animate-fade-in">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                    <span className="font-semibold text-indigo-900">Parsed Sourcing Blueprint</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 font-mono font-medium">
                       {parsedIntent.interpretationMode}
                     </span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-[11px]">
                     <div>
-                      <span className="text-slate-400">Target Industries:</span>
-                      <div className="text-white font-medium truncate">
+                      <span className="text-slate-500">Target Industries:</span>
+                      <div className="text-slate-900 font-medium truncate">
                         {parsedIntent.targetIndustries.join(', ') || 'Any'}
                       </div>
                     </div>
                     <div>
-                      <span className="text-slate-400">Target Roles:</span>
-                      <div className="text-white font-medium truncate">
+                      <span className="text-slate-500">Target Roles:</span>
+                      <div className="text-slate-900 font-medium truncate">
                         {parsedIntent.targetRoles.join(', ') || 'Any'}
                       </div>
                     </div>
                     <div>
-                      <span className="text-slate-400">Target Geography:</span>
-                      <div className="text-white font-medium truncate">
+                      <span className="text-slate-500">Target Geography:</span>
+                      <div className="text-slate-900 font-medium truncate">
                         {parsedIntent.targetGeography || 'Global'}
                       </div>
                     </div>
                     <div>
-                      <span className="text-slate-400">Budget Limit:</span>
-                      <div className="text-emerald-400 font-medium">
+                      <span className="text-slate-500">Budget Limit:</span>
+                      <div className="text-emerald-700 font-semibold font-mono">
                         ${parsedIntent.budgetLimit.toFixed(2)}
                       </div>
                     </div>
@@ -402,12 +402,12 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
 
                   {parsedIntent.buyingTriggers.length > 0 && (
                     <div>
-                      <span className="text-slate-400 text-[10px]">Intent Triggers:</span>
+                      <span className="text-slate-500 text-[10px]">Intent Triggers:</span>
                       <div className="flex flex-wrap gap-1 mt-1">
                         {parsedIntent.buyingTriggers.map((trig, idx) => (
                           <span
                             key={idx}
-                            className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-indigo-300 border border-slate-700/60"
+                            className="px-1.5 py-0.5 rounded bg-white text-[10px] text-indigo-700 border border-indigo-200 font-medium"
                           >
                             {trig}
                           </span>
@@ -418,12 +418,12 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
 
                   {parsedIntent.recommendedSources.length > 0 && (
                     <div>
-                      <span className="text-slate-400 text-[10px]">Selected Sources:</span>
+                      <span className="text-slate-500 text-[10px]">Selected Sources:</span>
                       <div className="flex flex-wrap gap-1 mt-1">
                         {parsedIntent.recommendedSources.map((src, idx) => (
                           <span
                             key={idx}
-                            className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-[10px] text-emerald-400 border border-emerald-500/20"
+                            className="px-1.5 py-0.5 rounded bg-emerald-50 text-[10px] text-emerald-700 border border-emerald-200 font-medium"
                           >
                             {src}
                           </span>
@@ -436,10 +436,10 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
             </div>
 
             {/* Run History List */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3">
-              <h3 className="text-sm font-semibold text-white flex items-center justify-between">
+            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-3">
+              <h3 className="text-sm font-semibold text-slate-900 flex items-center justify-between">
                 <span className="flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-slate-400" />
+                  <Layers className="w-4 h-4 text-slate-500" />
                   Past Orchestrator Runs
                 </span>
                 <span className="text-xs text-slate-500 font-normal">{runs.length} runs</span>
@@ -462,20 +462,20 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
                         }}
                         className={`p-3 rounded-xl border cursor-pointer transition-all ${
                           isSelected
-                            ? 'bg-purple-950/30 border-purple-500/40'
-                            : 'bg-slate-950/40 border-slate-800/80 hover:bg-slate-850'
+                            ? 'bg-indigo-50/70 border-indigo-300 ring-1 ring-indigo-200'
+                            : 'bg-white border-slate-200 hover:bg-slate-50'
                         }`}
                       >
                         <div className="flex items-center justify-between text-xs">
-                          <span className="font-semibold text-white truncate max-w-[180px]">{r.name}</span>
+                          <span className="font-semibold text-slate-900 truncate max-w-[180px]">{r.name}</span>
                           <span className={`text-[10px] px-2 py-0.5 rounded-full border ${getStatusBadge(r.status)}`}>
                             {r.status}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between text-[11px] text-slate-400 mt-2">
-                          <span>Yield: <strong className="text-emerald-400">{r.yieldAchieved}</strong> leads</span>
-                          <span>Spent: <strong className="text-slate-200">${r.budgetSpent.toFixed(2)}</strong></span>
-                          <span>Score: <strong className="text-purple-400">{r.efficiencyScore}%</strong></span>
+                        <div className="flex items-center justify-between text-[11px] text-slate-500 mt-2">
+                          <span>Yield: <strong className="text-emerald-700">{r.yieldAchieved}</strong> leads</span>
+                          <span>Spent: <strong className="text-slate-800">${r.budgetSpent.toFixed(2)}</strong></span>
+                          <span>Score: <strong className="text-indigo-700">{r.efficiencyScore}%</strong></span>
                         </div>
                       </div>
                     );
@@ -488,31 +488,31 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
           {/* Right Column: Execution Trace & Step Inspection (7 cols) */}
           <div className="lg:col-span-7 space-y-6">
             {selectedRun ? (
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-5">
+              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-5">
                 {/* Run Overview Metrics */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-200 pb-4">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-base font-bold text-white">{selectedRun.name}</h3>
+                      <h3 className="text-base font-bold text-slate-900">{selectedRun.name}</h3>
                       <span className={`text-xs px-2.5 py-0.5 rounded-full border ${getStatusBadge(selectedRun.status)}`}>
                         {selectedRun.status}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1 italic line-clamp-1">
+                    <p className="text-xs text-slate-500 mt-1 italic line-clamp-1">
                       "{selectedRun.naturalLanguageIntent}"
                     </p>
                   </div>
 
                   <div className="flex items-center gap-3">
                     <div className="text-right">
-                      <div className="text-[10px] text-slate-400">Total Spent / Limit</div>
-                      <div className="text-xs font-bold text-emerald-400">
+                      <div className="text-[10px] text-slate-500">Total Spent / Limit</div>
+                      <div className="text-xs font-bold text-emerald-700 font-mono">
                         ${selectedRun.budgetSpent.toFixed(2)} / ${selectedRun.budgetLimit.toFixed(2)}
                       </div>
                     </div>
-                    <div className="text-right border-l border-slate-800 pl-3">
-                      <div className="text-[10px] text-slate-400">Qualified Yield</div>
-                      <div className="text-xs font-bold text-white">
+                    <div className="text-right border-l border-slate-200 pl-3">
+                      <div className="text-[10px] text-slate-500">Qualified Yield</div>
+                      <div className="text-xs font-bold text-slate-900 font-mono">
                         {selectedRun.yieldAchieved} / {selectedRun.targetYield}
                       </div>
                     </div>
@@ -520,19 +520,19 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
                 </div>
 
                 {/* Multi-Stage Budget Allocation Gauge */}
-                <div className="space-y-2 bg-slate-950/60 p-3.5 rounded-xl border border-slate-800">
+                <div className="space-y-2 bg-slate-50 p-3.5 rounded-lg border border-slate-200">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-300 font-medium flex items-center gap-1.5">
-                      <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-slate-700 font-medium flex items-center gap-1.5">
+                      <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
                       Multi-Stage Adaptive Budget Allocation (Workstream G)
                     </span>
-                    <span className="text-[11px] text-slate-400 font-mono">
+                    <span className="text-[11px] text-slate-500 font-mono">
                       Efficiency Score: {selectedRun.efficiencyScore}%
                     </span>
                   </div>
 
                   {/* Segmented bar: 20% Discovery, 30% Signals, 50% Contacts */}
-                  <div className="h-2 w-full bg-slate-800 rounded-full flex overflow-hidden">
+                  <div className="h-2 w-full bg-slate-200 rounded-full flex overflow-hidden">
                     <div
                       className="bg-sky-500 h-full"
                       style={{ width: '20%' }}
@@ -550,7 +550,7 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
                     />
                   </div>
 
-                  <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
+                  <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1">
                     <span className="flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-sky-500" /> Discovery ($3.00)
                     </span>
@@ -565,8 +565,8 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
 
                 {/* Step Trace Timeline */}
                 <div className="space-y-3">
-                  <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                    <Activity className="w-3.5 h-3.5 text-purple-400" />
+                  <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                    <Activity className="w-3.5 h-3.5 text-indigo-600" />
                     Autonomous Execution Trace ({selectedRun.steps ? selectedRun.steps.length : 0} steps)
                   </h4>
 
@@ -578,29 +578,29 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
                           <div
                             key={step.id}
                             onClick={() => setSelectedStep(step)}
-                            className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
+                            className={`p-3 rounded-lg border cursor-pointer transition-all flex items-start justify-between gap-3 ${
                               isCurrentStep
-                                ? 'bg-purple-950/40 border-purple-500/50'
-                                : 'bg-slate-950/40 border-slate-800/80 hover:bg-slate-850'
+                                ? 'bg-indigo-50/70 border-indigo-300 ring-1 ring-indigo-200'
+                                : 'bg-slate-50 border-slate-200 hover:bg-slate-100/70'
                             }`}
                           >
                             <div className="flex items-start gap-2.5">
                               <div className="mt-0.5">{getStepStatusIcon(step.status)}</div>
                               <div>
                                 <div className="flex items-center gap-2">
-                                  <span className="font-mono text-xs font-semibold text-white">
+                                  <span className="font-mono text-xs font-semibold text-slate-900">
                                     Step {step.stepNumber}: {step.toolName}
                                   </span>
-                                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 font-mono">
+                                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-200 text-slate-700 font-mono">
                                     {step.durationMs}ms
                                   </span>
                                 </div>
-                                <p className="text-xs text-slate-300 mt-1">{step.rationale}</p>
+                                <p className="text-xs text-slate-600 mt-1">{step.rationale}</p>
                               </div>
                             </div>
 
                             <div className="text-right flex-shrink-0">
-                              <span className="text-xs font-medium text-emerald-400">
+                              <span className="text-xs font-semibold text-emerald-700 font-mono">
                                 ${step.costIncurred.toFixed(3)}
                               </span>
                             </div>
@@ -615,30 +615,30 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
 
                 {/* Selected Step Inspector */}
                 {selectedStep && (
-                  <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-3">
-                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                       <div className="flex items-center gap-2">
-                        <Zap className="w-4 h-4 text-purple-400" />
-                        <span className="text-xs font-semibold text-white">
-                          Step {selectedStep.stepNumber} Inspector: <code className="text-purple-300">{selectedStep.toolName}</code>
+                        <Zap className="w-4 h-4 text-indigo-600" />
+                        <span className="text-xs font-semibold text-slate-900">
+                          Step {selectedStep.stepNumber} Inspector: <code className="text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 font-mono">{selectedStep.toolName}</code>
                         </span>
                       </div>
-                      <span className="text-[11px] text-slate-400 font-mono">
+                      <span className="text-[11px] text-slate-500 font-mono">
                         Cost: ${selectedStep.costIncurred.toFixed(4)} | {selectedStep.durationMs}ms
                       </span>
                     </div>
 
                     <div className="text-xs space-y-2">
                       <div>
-                        <span className="text-slate-400 text-[11px] block mb-1">Execution Rationale:</span>
-                        <p className="text-slate-200 bg-slate-900/60 p-2.5 rounded-lg border border-slate-800/60">
+                        <span className="text-slate-500 text-[11px] block mb-1">Execution Rationale:</span>
+                        <p className="text-slate-800 bg-white p-2.5 rounded-lg border border-slate-200">
                           {selectedStep.rationale}
                         </p>
                       </div>
 
                       <div>
-                        <span className="text-slate-400 text-[11px] block mb-1">Output Payload Evidence:</span>
-                        <pre className="bg-slate-900 p-2.5 rounded-lg border border-slate-800 text-[10px] text-slate-300 overflow-x-auto max-h-36 font-mono">
+                        <span className="text-slate-500 text-[11px] block mb-1">Output Payload Evidence:</span>
+                        <pre className="bg-white p-2.5 rounded-lg border border-slate-200 text-[10px] text-slate-800 overflow-x-auto max-h-36 font-mono">
                           {JSON.stringify(selectedStep.toolOutput, null, 2)}
                         </pre>
                       </div>
@@ -647,10 +647,10 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
                 )}
               </div>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center bg-slate-900/60 border border-slate-800 rounded-2xl p-8 text-center text-slate-500">
-                <Bot className="w-12 h-12 text-slate-600 mb-3" />
-                <h4 className="text-sm font-semibold text-slate-400">No Run Selected</h4>
-                <p className="text-xs max-w-sm mt-1">
+              <div className="h-full flex flex-col items-center justify-center bg-white border border-slate-200 rounded-xl p-8 text-center text-slate-500">
+                <Bot className="w-12 h-12 text-slate-300 mb-3" />
+                <h4 className="text-sm font-semibold text-slate-700">No Run Selected</h4>
+                <p className="text-xs max-w-sm mt-1 text-slate-500">
                   Launch a new agentic run or select a past run from the left panel to inspect the multi-tool execution trace.
                 </p>
               </div>
@@ -661,14 +661,14 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
 
       {/* SUB-VIEW 2: LEARNED OPTIMIZATION WEIGHTS */}
       {subView === 'weights' && (
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
             <div>
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-emerald-400" />
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-emerald-600" />
                 Feedback-Driven Empirical Sourcing Optimization (Workstream I)
               </h3>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Continuous machine learning from Phase 5 outreach engagement (replies, meetings booked, pipeline revenue) to dynamically prioritize highest-ROI data sources.
               </p>
             </div>
@@ -676,7 +676,7 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
             <button
               onClick={handleRecomputeWeights}
               disabled={isRecomputing}
-              className="py-2 px-3.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-xs font-semibold text-white shadow-lg shadow-purple-600/30 transition-all flex items-center gap-1.5 disabled:opacity-50 self-start sm:self-auto"
+              className="py-2 px-3.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white shadow-xs transition-all flex items-center gap-1.5 disabled:opacity-50 self-start sm:self-auto"
             >
               <RotateCw className={`w-3.5 h-3.5 ${isRecomputing ? 'animate-spin' : ''}`} />
               {isRecomputing ? 'Recomputing...' : 'Recompute from Phase 5 Data'}
@@ -685,7 +685,7 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/60 text-slate-400 font-semibold border-b border-slate-800">
+              <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
                 <tr>
                   <th className="p-3">Source Name</th>
                   <th className="p-3">Yield Rate</th>
@@ -696,7 +696,7 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
                   <th className="p-3">Attributed Pipeline</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-slate-100">
                 {weights.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="p-6 text-center text-slate-500">
@@ -705,39 +705,39 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
                   </tr>
                 ) : (
                   weights.map((w) => (
-                    <tr key={w.id} className="hover:bg-slate-850/50 transition-colors">
-                      <td className="p-3 font-semibold text-white">
+                    <tr key={w.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="p-3 font-semibold text-slate-900">
                         {w.sourceName || w.sourceId}
                         <span className="block text-[10px] text-slate-500 font-mono font-normal">
                           {w.sourceId}
                         </span>
                       </td>
-                      <td className="p-3 font-mono text-emerald-400">
+                      <td className="p-3 font-mono text-emerald-700 font-medium">
                         {(w.empiricalYieldRate * 100).toFixed(1)}%
                       </td>
-                      <td className="p-3 font-mono text-amber-400">
+                      <td className="p-3 font-mono text-amber-700 font-medium">
                         {(w.empiricalDuplicateRate * 100).toFixed(1)}%
                       </td>
-                      <td className="p-3 font-mono text-sky-400">
+                      <td className="p-3 font-mono text-sky-700 font-medium">
                         {(w.empiricalReplyRate * 100).toFixed(1)}%
                       </td>
-                      <td className="p-3 font-mono text-indigo-400">
+                      <td className="p-3 font-mono text-indigo-700 font-medium">
                         {(w.empiricalMeetingRate * 100).toFixed(1)}%
                       </td>
                       <td className="p-3 font-mono">
                         <span
                           className={`px-2 py-0.5 rounded font-bold ${
                             w.qualityMultiplier >= 1.2
-                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                               : w.qualityMultiplier < 0.9
-                              ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-                              : 'bg-slate-800 text-slate-300'
+                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                              : 'bg-slate-100 text-slate-700 border border-slate-200'
                           }`}
                         >
                           {w.qualityMultiplier.toFixed(2)}x
                         </span>
                       </td>
-                      <td className="p-3 font-mono font-semibold text-emerald-300">
+                      <td className="p-3 font-mono font-semibold text-emerald-700">
                         ${w.totalPipelineAttributed.toLocaleString()}
                       </td>
                     </tr>
@@ -751,14 +751,14 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
 
       {/* SUB-VIEW 3: A/B BENCHMARK EXPERIMENTS */}
       {subView === 'experiments' && (
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
             <div>
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <FlaskConical className="w-4 h-4 text-purple-400" />
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <FlaskConical className="w-4 h-4 text-indigo-600" />
                 A/B Sourcing Strategy Benchmark (Workstream J)
               </h3>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Direct head-to-head empirical comparison: Phase 6A Static Planning vs Phase 6B Adaptive Agentic Orchestration.
               </p>
             </div>
@@ -767,7 +767,7 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
               <select
                 value={sampleSize}
                 onChange={(e) => setSampleSize(Number(e.target.value))}
-                className="bg-slate-950 border border-slate-800 text-xs text-slate-300 rounded-xl px-2.5 py-2 focus:outline-none"
+                className="bg-white border border-slate-300 text-xs text-slate-700 rounded-lg px-2.5 py-2 focus:outline-none focus:border-indigo-500"
               >
                 <option value={100}>Sample: 100 Prospects</option>
                 <option value={200}>Sample: 200 Prospects</option>
@@ -776,7 +776,7 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
               <button
                 onClick={handleRunExperiment}
                 disabled={isRunningExp}
-                className="py-2 px-3.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-xs font-semibold text-white shadow-lg shadow-purple-600/30 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                className="py-2 px-3.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white shadow-xs transition-all flex items-center gap-1.5 disabled:opacity-50"
               >
                 <Play className={`w-3.5 h-3.5 ${isRunningExp ? 'animate-spin' : ''}`} />
                 {isRunningExp ? 'Running Benchmark...' : 'Run A/B Benchmark'}
@@ -790,14 +790,14 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
               {experiments.map((exp) => (
                 <div
                   key={exp.id}
-                  className="bg-slate-950/70 border border-slate-800 rounded-xl p-5 space-y-4"
+                  className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-4"
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-sm font-bold text-white">{exp.name}</h4>
-                      <p className="text-xs text-slate-400 mt-0.5">{exp.description}</p>
+                      <h4 className="text-sm font-bold text-slate-900">{exp.name}</h4>
+                      <p className="text-xs text-slate-500 mt-0.5">{exp.description}</p>
                     </div>
-                    <span className="text-xs font-mono px-2.5 py-1 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20">
+                    <span className="text-xs font-mono px-2.5 py-1 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold">
                       Sample Size: {exp.sampleSize}
                     </span>
                   </div>
@@ -805,37 +805,37 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
                   {/* Comparative Cards */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Baseline Strategy (Static Phase 6A) */}
-                    <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800 space-y-3">
+                    <div className="p-4 bg-white rounded-xl border border-slate-200 space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-300 uppercase tracking-wide">
+                        <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
                           Strategy A: Static Phase 6A
                         </span>
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400">
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">
                           Baseline
                         </span>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div>
-                          <span className="text-slate-400 text-[10px]">Qualified Yield:</span>
-                          <div className="font-bold text-white font-mono">
+                          <span className="text-slate-500 text-[10px]">Qualified Yield:</span>
+                          <div className="font-bold text-slate-900 font-mono">
                             {exp.baselineMetrics.yieldCount} ({exp.baselineMetrics.yieldRatePct}%)
                           </div>
                         </div>
                         <div>
-                          <span className="text-slate-400 text-[10px]">Total Cost:</span>
-                          <div className="font-bold text-amber-400 font-mono">
+                          <span className="text-slate-500 text-[10px]">Total Cost:</span>
+                          <div className="font-bold text-amber-700 font-mono">
                             ${exp.baselineMetrics.totalCost.toFixed(2)}
                           </div>
                         </div>
                         <div>
-                          <span className="text-slate-400 text-[10px]">Cost / Lead:</span>
-                          <div className="font-bold text-slate-300 font-mono">
+                          <span className="text-slate-500 text-[10px]">Cost / Lead:</span>
+                          <div className="font-bold text-slate-700 font-mono">
                             ${exp.baselineMetrics.unitCost.toFixed(3)}
                           </div>
                         </div>
                         <div>
-                          <span className="text-slate-400 text-[10px]">Filter Efficiency:</span>
-                          <div className="font-bold text-slate-300 font-mono">
+                          <span className="text-slate-500 text-[10px]">Filter Efficiency:</span>
+                          <div className="font-bold text-slate-700 font-mono">
                             {exp.baselineMetrics.efficiencyPct}%
                           </div>
                         </div>
@@ -843,38 +843,38 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
                     </div>
 
                     {/* Agentic Strategy (Adaptive Phase 6B) */}
-                    <div className="p-4 bg-purple-950/20 rounded-xl border border-purple-500/30 space-y-3">
+                    <div className="p-4 bg-indigo-50/50 rounded-xl border border-indigo-200 space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-purple-300 uppercase tracking-wide flex items-center gap-1.5">
-                          <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                        <span className="text-xs font-bold text-indigo-950 uppercase tracking-wide flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
                           Strategy B: Adaptive Phase 6B
                         </span>
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold">
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-bold">
                           Agentic
                         </span>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div>
-                          <span className="text-slate-400 text-[10px]">Qualified Yield:</span>
-                          <div className="font-bold text-emerald-400 font-mono">
+                          <span className="text-slate-500 text-[10px]">Qualified Yield:</span>
+                          <div className="font-bold text-emerald-700 font-mono">
                             {exp.agenticMetrics.yieldCount} ({exp.agenticMetrics.yieldRatePct}%)
                           </div>
                         </div>
                         <div>
-                          <span className="text-slate-400 text-[10px]">Total Cost:</span>
-                          <div className="font-bold text-emerald-400 font-mono">
+                          <span className="text-slate-500 text-[10px]">Total Cost:</span>
+                          <div className="font-bold text-emerald-700 font-mono">
                             ${exp.agenticMetrics.totalCost.toFixed(2)}
                           </div>
                         </div>
                         <div>
-                          <span className="text-slate-400 text-[10px]">Cost / Lead:</span>
-                          <div className="font-bold text-emerald-400 font-mono">
+                          <span className="text-slate-500 text-[10px]">Cost / Lead:</span>
+                          <div className="font-bold text-emerald-700 font-mono">
                             ${exp.agenticMetrics.unitCost.toFixed(3)}
                           </div>
                         </div>
                         <div>
-                          <span className="text-slate-400 text-[10px]">Filter Efficiency:</span>
-                          <div className="font-bold text-purple-300 font-mono">
+                          <span className="text-slate-500 text-[10px]">Filter Efficiency:</span>
+                          <div className="font-bold text-indigo-800 font-mono">
                             {exp.agenticMetrics.efficiencyPct}%
                           </div>
                         </div>
@@ -883,21 +883,21 @@ export const AgenticSourcingPanel: React.FC<AgenticSourcingPanelProps> = ({
                   </div>
 
                   {/* Uplift Summary Row */}
-                  <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
-                    <span className="font-semibold text-emerald-300 flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <span className="font-semibold text-emerald-900 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                       Empirical Uplift:
                     </span>
-                    <span className="text-emerald-400 font-mono font-bold">
+                    <span className="text-emerald-800 font-mono font-bold">
                       Yield Uplift: +{exp.upliftSummary.yieldUpliftPct}%
                     </span>
-                    <span className="text-emerald-400 font-mono font-bold">
+                    <span className="text-emerald-800 font-mono font-bold">
                       Cost Reduction: -{exp.upliftSummary.costReductionPct}%
                     </span>
-                    <span className="text-purple-300 font-mono font-bold">
+                    <span className="text-indigo-800 font-mono font-bold">
                       Efficiency Gain: +{exp.upliftSummary.efficiencyGainPct}%
                     </span>
-                    <span className="text-slate-300 text-[11px] italic">
+                    <span className="text-slate-600 text-[11px] italic">
                       ROI: {exp.upliftSummary.netRoiImprovement}
                     </span>
                   </div>

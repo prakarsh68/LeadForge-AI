@@ -490,7 +490,7 @@ export const App: React.FC = () => {
     : leads.reduce((acc, l) => acc + l.dealValue, 0);
 
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500/30 selection:text-indigo-200">
+    <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900">
       {/* Sidebar Navigation */}
       <Sidebar
         currentView={currentView}
@@ -504,7 +504,7 @@ export const App: React.FC = () => {
       />
 
       {/* Main Content Workspace */}
-      <div className="flex flex-1 flex-col min-w-0">
+      <div className="flex flex-1 flex-col min-w-0 bg-slate-50">
         <Navbar
           currentView={currentView}
           onOpenMobileMenu={() => setIsOpenMobile(true)}
@@ -518,22 +518,22 @@ export const App: React.FC = () => {
 
         {/* Global Error Banner */}
         {errorMessage && (
-          <div className="mx-4 sm:mx-6 lg:mx-8 mt-4 flex items-center justify-between rounded-2xl border border-rose-500/30 bg-rose-950/40 p-4 text-xs text-rose-300 animate-in fade-in">
+          <div className="mx-4 sm:mx-6 lg:mx-8 mt-4 flex items-center justify-between rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800 shadow-xs animate-in fade-in">
             <div className="flex items-center gap-2.5">
-              <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
-              <span>{errorMessage}</span>
+              <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
+              <span className="font-medium">{errorMessage}</span>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={refreshFromBackend}
-                className="inline-flex items-center gap-1 rounded-lg border border-rose-500/40 bg-rose-900/40 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-rose-800 transition-colors"
+                className="inline-flex items-center gap-1 rounded-lg border border-rose-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer shadow-2xs"
               >
                 <RefreshCw className="h-3 w-3" />
                 Retry
               </button>
               <button
                 onClick={() => setErrorMessage(null)}
-                className="rounded-lg p-1 text-rose-400 hover:text-white hover:bg-rose-900/30 transition-colors"
+                className="rounded-lg p-1 text-rose-500 hover:text-rose-800 hover:bg-rose-100 transition-colors cursor-pointer"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -543,8 +543,8 @@ export const App: React.FC = () => {
 
         {/* Global Feedback Notice */}
         {feedbackNotice && (
-          <div className="mx-4 sm:mx-6 lg:mx-8 mt-4 flex items-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-950/40 p-3.5 text-xs font-semibold text-emerald-400 animate-in fade-in">
-            <CheckCircle2 className="h-4 w-4 shrink-0" />
+          <div className="mx-4 sm:mx-6 lg:mx-8 mt-4 flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-3.5 text-xs font-semibold text-emerald-800 shadow-xs animate-in fade-in">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
             <span>{feedbackNotice}</span>
           </div>
         )}
@@ -552,8 +552,8 @@ export const App: React.FC = () => {
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
           {isLoading && leads.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 space-y-4">
-              <RefreshCw className="h-8 w-8 text-indigo-400 animate-spin" />
-              <p className="text-sm font-semibold text-slate-400">Loading LeadForge repository...</p>
+              <RefreshCw className="h-8 w-8 text-indigo-600 animate-spin" />
+              <p className="text-sm font-semibold text-slate-600">Loading LeadForge repository...</p>
             </div>
           ) : (
             <>

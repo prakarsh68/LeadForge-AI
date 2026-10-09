@@ -465,4 +465,50 @@ describe('Discovery Subsystem & Provider Foundation (/api/discovery)', () => {
       }
     );
   });
+
+  test('GET /api/discovery/capabilities returns connector capability matrix', async () => {
+    const res = await ctx.request('/api/discovery/capabilities');
+    assert.equal(res.status, 200);
+    assert.equal(res.body.success, true);
+    assert.ok(Array.isArray(res.body.data));
+    assert.ok(res.body.data.length >= 4);
+
+    const hunter = res.body.data.find((c: any) => c.id === 'hunter');
+    assert.ok(hunter);
+    assert.equal(hunter.providerType, 'live_api');
+    assert.ok(hunter.requiredCredentials.includes('HUNTER_API_KEY'));
+    assert.ok(hunter.capabilities.includes('domain_search'));
+
+    const demo = res.body.data.find((c: any) => c.id === 'mock');
+    assert.ok(demo);
+    assert.equal(demo.providerType, 'demo_sandbox');
+    assert.equal(demo.isConfigured, true);
+  });
+
+  test('POST /api/discovery/dry-run performs isolated simulation without persisting data', async () => {
+    const res = await ctx.request('/api/discovery/dry-run', {
+      method: 'POST',
+      body: JSON.stringify({ domain: 'stripe.com', limit: 5 }),
+    });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.success, true);
+    assert.equal(res.body.data.isDryRun, true);
+    assert.equal(res.body.data.domain, 'stripe.com');
+    assert.ok(Array.isArray(res.body.data.plannedOperations));
+    assert.ok(Array.isArray(res.body.data.filteringFunnel));
+    assert.ok(Array.isArray(res.body.data.projectedCandidates));
+    assert.ok(res.body.data.projectedCandidates.length > 0);
+  });
+
+  test('POST /api/discovery/cleanup-demo purges only demo sandbox records safely', async () => {
+    const res = await ctx.request('/api/discovery/cleanup-demo', {
+      method: 'POST',
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.success, true);
+    assert.ok(typeof res.body.data.cleanedCandidates === 'number');
+    assert.ok(typeof res.body.data.cleanedJobs === 'number');
+    assert.ok(typeof res.body.data.cleanedLeads === 'number');
+  });
 });

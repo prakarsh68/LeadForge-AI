@@ -32,24 +32,24 @@ export const DiscoveryChart: React.FC = () => {
   const maxVal = Math.max(...activeData.map((d) => d.total));
 
   return (
-    <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5 backdrop-blur-sm">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-slate-800/60">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-slate-100">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="text-sm sm:text-base font-bold text-white">
-              Lead Discovery & Qualification Velocity
+            <h3 className="text-sm sm:text-base font-bold text-slate-900">
+              Lead Discovery &amp; Qualification Velocity
             </h3>
-            <span className="rounded-md bg-indigo-500/10 px-2 py-0.5 text-[10px] font-semibold text-indigo-300 border border-indigo-500/20">
+            <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 border border-indigo-200">
               Live Feed
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-slate-500 mt-0.5">
             Volume of raw accounts identified vs. ICP Qualified leads ({timeframe} window)
           </p>
         </div>
 
         {/* Timeframe selector */}
-        <div className="flex items-center gap-1 rounded-xl bg-slate-800/80 p-1 border border-slate-700/60 self-start sm:self-auto">
+        <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1 border border-slate-200 self-start sm:self-auto">
           {(['7D', '30D', '90D'] as const).map((period) => (
             <button
               key={period}
@@ -59,8 +59,8 @@ export const DiscoveryChart: React.FC = () => {
               }}
               className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors ${
                 timeframe === period
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900'
               }`}
             >
               {period}
@@ -70,18 +70,18 @@ export const DiscoveryChart: React.FC = () => {
       </div>
 
       {/* Legend */}
-      <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
+      <div className="mt-4 flex items-center justify-between text-xs text-slate-600">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded bg-indigo-500/40 border border-indigo-400/60" />
+            <div className="h-3 w-3 rounded bg-slate-200 border border-slate-300" />
             <span>Raw Leads Found</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded bg-emerald-500 border border-emerald-400 shadow-xs shadow-emerald-500/50" />
-            <span className="text-emerald-300 font-medium">ICP Qualified</span>
+            <div className="h-3 w-3 rounded bg-indigo-600 border border-indigo-700" />
+            <span className="text-indigo-900 font-medium">ICP Qualified</span>
           </div>
         </div>
-        <div className="hidden sm:flex items-center gap-1 text-[11px] text-emerald-400">
+        <div className="hidden sm:flex items-center gap-1 text-[11px] text-emerald-700 font-medium">
           <TrendingUp className="h-3.5 w-3.5" />
           <span>+24% qualification rate</span>
         </div>
@@ -103,7 +103,7 @@ export const DiscoveryChart: React.FC = () => {
             >
               {/* Tooltip on hover */}
               {isHovered && (
-                <div className="absolute -top-12 z-20 whitespace-nowrap rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-[11px] font-semibold text-slate-100 shadow-xl pointer-events-none">
+                <div className="absolute -top-12 z-20 whitespace-nowrap rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-slate-100 shadow-xl pointer-events-none">
                   <div>
                     {item.label}: <span className="text-white font-bold">{item.total} total</span>
                   </div>
@@ -115,12 +115,12 @@ export const DiscoveryChart: React.FC = () => {
 
               {/* Bar Stack */}
               <div
-                className="w-full rounded-t-lg overflow-hidden bg-indigo-950/40 border border-indigo-500/30 flex flex-col justify-end transition-all duration-300 group-hover:border-indigo-400 group-hover:shadow-lg group-hover:shadow-indigo-500/20"
+                className="w-full rounded-t-lg overflow-hidden bg-slate-100 border border-slate-200 flex flex-col justify-end transition-all duration-300 group-hover:border-indigo-300"
                 style={{ height: `${totalHeightPercent}%` }}
               >
                 {/* Qualified portion */}
                 <div
-                  className="w-full bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-t-sm transition-all duration-500"
+                  className="w-full bg-indigo-600 rounded-t-sm transition-all duration-500 group-hover:bg-indigo-700"
                   style={{ height: `${qualHeightPercent}%` }}
                 />
               </div>
@@ -128,7 +128,7 @@ export const DiscoveryChart: React.FC = () => {
               {/* Day/Period Label */}
               <span
                 className={`mt-2 text-xs font-semibold transition-colors ${
-                  isHovered ? 'text-indigo-300' : 'text-slate-400'
+                  isHovered ? 'text-indigo-600' : 'text-slate-500'
                 }`}
               >
                 {item.label}
@@ -139,12 +139,12 @@ export const DiscoveryChart: React.FC = () => {
       </div>
 
       {/* Chart Footer Highlight */}
-      <div className="mt-5 pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400">
+      <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
         <span className="flex items-center gap-1.5">
-          <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+          <Sparkles className="h-3.5 w-3.5 text-amber-500" />
           Autonomous pipeline ingest rate peaking during mid-week sprints
         </span>
-        <span className="text-[11px] text-slate-400 font-mono">Window: {timeframe}</span>
+        <span className="text-[11px] text-slate-500 font-mono">Window: {timeframe}</span>
       </div>
     </div>
   );

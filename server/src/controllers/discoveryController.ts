@@ -221,5 +221,57 @@ export const discoveryController = {
       });
     }
   },
+
+  getCapabilities(_req: Request, res: Response, next: NextFunction): void {
+    try {
+      const capabilities = discoveryService.getConnectorCapabilities();
+      res.status(200).json({
+        success: true,
+        data: capabilities,
+        meta: { count: capabilities.length },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  runDryRun(req: Request, res: Response, _next: NextFunction): void {
+    try {
+      const { domain, limit, targetRoles } = req.body;
+      const result = discoveryService.runDryRun({
+        domain,
+        limit: limit !== undefined ? Number(limit) : undefined,
+        targetRoles,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: result,
+        message: `Dry-run simulation complete for ${result.domain}. Projected yield: ${result.projectedYield} candidates.`,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message || 'Dry-run simulation failed.',
+      });
+    }
+  },
+
+  cleanupDemoData(_req: Request, res: Response, _next: NextFunction): void {
+    try {
+      const counts = discoveryService.cleanupDemoData();
+      res.status(200).json({
+        success: true,
+        data: counts,
+        message: `Purged ${counts.cleanedCandidates} demo candidates and ${counts.cleanedLeads} demo leads. Production data preserved.`,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to cleanup demo data.',
+      });
+    }
+  },
 };
+
 

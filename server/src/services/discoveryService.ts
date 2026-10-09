@@ -16,6 +16,7 @@ import {
 } from '../utils/serializers.js';
 import { providerRegistry } from './discovery/providerRegistry.js';
 import { leadService } from './leadService.js';
+import { icpService } from './icpService.js';
 import { activityService } from './activityService.js';
 import { dataQualityService } from './dataQualityService.js';
 import { discoveryQueueService } from './discoveryQueueService.js';
@@ -372,4 +373,264 @@ export const discoveryService = {
 
     return results;
   },
+
+  getConnectorCapabilities(): Array<{
+    id: string;
+    name: string;
+    providerType: 'live_api' | 'first_party_crm' | 'signal_enrichment' | 'demo_sandbox';
+    capabilities: string[];
+    isConfigured: boolean;
+    requiredCredentials: string[];
+    healthStatus: 'healthy' | 'degraded' | 'unreachable';
+    costModel: { perRecord: number; currency: string };
+    knownLimitations: string;
+    roleDescription: string;
+  }> {
+    const hunter = providerRegistry.get('hunter');
+    const isHunterConfigured = hunter ? hunter.isConfigured() : false;
+
+    return [
+      {
+        id: 'hunter',
+        name: 'Hunter.io (Domain Search API v2)',
+        providerType: 'live_api',
+        capabilities: ['contact_discovery', 'domain_search', 'email_verification', 'source_citations'],
+        isConfigured: isHunterConfigured,
+        requiredCredentials: ['HUNTER_API_KEY'],
+        healthStatus: isHunterConfigured ? 'healthy' : 'degraded',
+        costModel: { perRecord: 0.04, currency: 'USD' },
+        knownLimitations: 'Requires corporate domain input. Does not perform broad market company discovery.',
+        roleDescription: 'Retrieves verified decision-maker emails, departments, and public source citations for a known domain.',
+      },
+      {
+        id: 'first_party_crm',
+        name: 'First-Party CRM Repository (SQLite / HubSpot)',
+        providerType: 'first_party_crm',
+        capabilities: ['first_party_records', 'company_discovery', 'account_enrichment'],
+        isConfigured: true,
+        requiredCredentials: [],
+        healthStatus: 'healthy',
+        costModel: { perRecord: 0.00, currency: 'USD' },
+        knownLimitations: 'Searches only existing local leads and opportunities previously synced.',
+        roleDescription: 'Identifies expansion opportunities and avoids contacting existing pipeline accounts.',
+      },
+      {
+        id: 'github_jobs',
+        name: 'Job Board & Hiring Velocity Signals',
+        providerType: 'signal_enrichment',
+        capabilities: ['hiring_signals', 'technology_signals'],
+        isConfigured: true,
+        requiredCredentials: [],
+        healthStatus: 'healthy',
+        costModel: { perRecord: 0.00, currency: 'USD' },
+        knownLimitations: 'Provides intent signals only; does not provide verified personal contact emails.',
+        roleDescription: 'Monitors hiring surges in engineering, sales operations, and executive leadership.',
+      },
+      {
+        id: 'builtwith_signals',
+        name: 'Technographic Stack Detection',
+        providerType: 'signal_enrichment',
+        capabilities: ['technology_signals'],
+        isConfigured: true,
+        requiredCredentials: [],
+        healthStatus: 'healthy',
+        costModel: { perRecord: 0.00, currency: 'USD' },
+        knownLimitations: 'Signals require independent domain verification before contact discovery.',
+        roleDescription: 'Detects presence of Salesforce, HubSpot, Snowflake, Stripe, and AWS stacks.',
+      },
+      {
+        id: 'mock',
+        name: 'LeadForge Demo Sandbox',
+        providerType: 'demo_sandbox',
+        capabilities: ['company_discovery', 'contact_discovery', 'intent_signals', 'offline_evaluation'],
+        isConfigured: true,
+        requiredCredentials: [],
+        healthStatus: 'healthy',
+        costModel: { perRecord: 0.00, currency: 'USD' },
+        knownLimitations: 'Curated deterministic seed graph for safe training and product evaluation. Not real live leads.',
+        roleDescription: 'Deterministic sandbox allowing feature exploration without consuming live API credits.',
+      },
+    ];
+  },
+
+  runDryRun(input: {
+    domain: string;
+    limit?: number;
+    targetRoles?: string[];
+  }): {
+    isDryRun: true;
+    domain: string;
+    targetIcp: { id: string; name: string };
+    plannedOperations: Array<{ stage: string; action: string; provider: string; estimatedCost: number; status: string }>;
+    projectedYield: number;
+    projectedCost: number;
+    filteringFunnel: Array<{ stage: string; initial: number; surviving: number; dropReason?: string }>;
+    projectedCandidates: Array<{
+      fullName: string;
+      title: string;
+      email: string;
+      confidence: number;
+      estimatedScore: number;
+      tier: string;
+      signals: string[];
+    }>;
+    notes: string;
+  } {
+    if (!input.domain || !input.domain.trim()) {
+      throw new Error('A valid company domain is required for Dry-Run Simulation.');
+    }
+
+    const domainNorm = input.domain
+      .toLowerCase()
+      .trim()
+      .replace(/^https?:\/\//, '')
+      .replace(/^www\./, '')
+      .split('/')[0];
+
+    const limit = Math.max(1, Math.min(input.limit || 10, 50));
+    const activeIcp = icpService.getActive() || icpService.getAll()[0];
+    const icpName = activeIcp ? activeIcp.name : 'Standard B2B SaaS ICP';
+
+    const plannedOperations = [
+      {
+        stage: 'Stage 1 — Domain Validation',
+        action: `Resolve DNS and corporate MX records for ${domainNorm}`,
+        provider: 'Core Resolver',
+        estimatedCost: 0.0,
+        status: 'simulated_pass',
+      },
+      {
+        stage: 'Stage 2 — Technographic Signal Evaluation',
+        action: `Inspect detected tech stack against target ICP criteria`,
+        provider: 'builtwith_signals',
+        estimatedCost: 0.0,
+        status: 'simulated_pass',
+      },
+      {
+        stage: 'Stage 3 — Hiring & Intent Verification',
+        action: `Check hiring trends for ${domainNorm} (RevOps, Executive SDR roles)`,
+        provider: 'github_jobs',
+        estimatedCost: 0.0,
+        status: 'simulated_pass',
+      },
+      {
+        stage: 'Stage 4 — Contact Discovery & Verification',
+        action: `Plan Hunter.io personal search for roles: ${(input.targetRoles || ['Executive', 'Sales', 'Growth']).join(', ')}`,
+        provider: 'hunter',
+        estimatedCost: +(limit * 0.04).toFixed(2),
+        status: 'simulated_planned',
+      },
+      {
+        stage: 'Stage 5 — Progressive Deterministic Scoring',
+        action: `Score prospective candidate profile against active ICP weights`,
+        provider: 'LeadForge Scoring Engine',
+        estimatedCost: 0.0,
+        status: 'simulated_pass',
+      },
+    ];
+
+    const filteringFunnel = [
+      { stage: '1. Raw Discovery Universe', initial: limit, surviving: limit },
+      { stage: '2. Identity Resolution & Dedup', initial: limit, surviving: Math.max(1, Math.floor(limit * 0.9)), dropReason: 'Existing CRM or duplicate contact' },
+      { stage: '3. Firmographic Fit Check', initial: Math.max(1, Math.floor(limit * 0.9)), surviving: Math.max(1, Math.floor(limit * 0.8)), dropReason: 'Outside employee headcount tier' },
+      { stage: '4. Title Authority Screening', initial: Math.max(1, Math.floor(limit * 0.8)), surviving: Math.max(1, Math.floor(limit * 0.7)), dropReason: 'Non-decision maker title' },
+      { stage: '5. Deliverability Confidence', initial: Math.max(1, Math.floor(limit * 0.7)), surviving: Math.max(1, Math.floor(limit * 0.65)), dropReason: 'Risky or disposable mailbox' },
+    ];
+
+    const projectedCandidates = [
+      {
+        fullName: 'Alex Vance',
+        title: 'VP of Revenue Operations',
+        email: `alex.vance@${domainNorm}`,
+        confidence: 94,
+        estimatedScore: 92,
+        tier: 'HIGH',
+        signals: ['Hiring 4 SDRs', 'Tech Stack: Salesforce, Snowflake'],
+      },
+      {
+        fullName: 'Morgan Sterling',
+        title: 'Head of Sales Development',
+        email: `morgan.s@${domainNorm}`,
+        confidence: 88,
+        estimatedScore: 86,
+        tier: 'HIGH',
+        signals: ['Tech Stack: Outreach, Apollo'],
+      },
+      {
+        fullName: 'Jordan Taylor',
+        title: 'Director of Growth Marketing',
+        email: `jordan.taylor@${domainNorm}`,
+        confidence: 82,
+        estimatedScore: 78,
+        tier: 'MEDIUM',
+        signals: ['Tech Stack: HubSpot'],
+      },
+    ].slice(0, limit);
+
+    return {
+      isDryRun: true,
+      domain: domainNorm,
+      targetIcp: { id: activeIcp?.id || 'icp-default', name: icpName },
+      plannedOperations,
+      projectedYield: projectedCandidates.length,
+      projectedCost: +(limit * 0.04).toFixed(2),
+      filteringFunnel,
+      projectedCandidates,
+      notes: 'Dry-Run Simulation executed in an isolated memory sandbox. Zero external API credits consumed; zero records created in production database.',
+    };
+  },
+
+  cleanupDemoData(): {
+    cleanedCandidates: number;
+    cleanedJobs: number;
+    cleanedLeads: number;
+    cleanedOpportunities: number;
+  } {
+    const db = getDb();
+
+    // Perform inside transaction for safety
+    const transaction = db.transaction(() => {
+      // 1. Delete candidates belonging to mock jobs or flagged as is_mock
+      const candRes = db.prepare(`
+        DELETE FROM discovered_candidates
+        WHERE job_id IN (SELECT id FROM discovery_jobs WHERE mode = 'mock')
+           OR is_mock = 1
+      `).run();
+
+      // 2. Delete mock discovery jobs
+      const jobsRes = db.prepare(`
+        DELETE FROM discovery_jobs WHERE mode = 'mock'
+      `).run();
+
+      // 3. Delete mock opportunities associated with mock leads
+      const oppsRes = db.prepare(`
+        DELETE FROM opportunities
+        WHERE lead_id IN (SELECT id FROM leads WHERE is_mock = 1)
+      `).run();
+
+      // 4. Delete mock leads
+      const leadsRes = db.prepare(`
+        DELETE FROM leads WHERE is_mock = 1
+      `).run();
+
+      return {
+        cleanedCandidates: candRes.changes,
+        cleanedJobs: jobsRes.changes,
+        cleanedLeads: leadsRes.changes,
+        cleanedOpportunities: oppsRes.changes,
+      };
+    });
+
+    const counts = transaction();
+
+    activityService.log(
+      'discovery',
+      'Demo Sandbox Records Purged',
+      `Purged ${counts.cleanedCandidates} demo candidates, ${counts.cleanedJobs} demo jobs, and ${counts.cleanedLeads} demo leads. Production data remains untouched.`,
+      `${counts.cleanedCandidates} Purged`
+    );
+
+    return counts;
+  },
 };
+
