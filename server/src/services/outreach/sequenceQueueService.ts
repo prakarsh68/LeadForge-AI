@@ -231,6 +231,11 @@ export class SequenceQueueService {
     const lead = db.prepare('SELECT * FROM leads WHERE id = ?').get(seq.lead_id) as any;
     if (!lead) return { success: false, error: 'Lead not found' };
 
+    // 0. Email validation check
+    if (!lead.email || typeof lead.email !== 'string' || !lead.email.trim()) {
+      return { success: false, error: `Lead '${lead.name || 'Unknown'}' does not have a valid email address.` };
+    }
+
     // 1. Safety Re-validation: Check suppression list
     if (engagementService.isSuppressed(lead.email)) {
       db.prepare(`
@@ -249,6 +254,21 @@ export class SequenceQueueService {
         WHERE id = ?
       `).run(sequenceId);
       return { success: false, error: `Lead status is ${lead.status}. Sequence stopped.` };
+    }
+
+    // 2b. Check if already completed
+    if (seq.status === 'completed') {
+      return { success: false, error: 'Sequence is already completed. All steps have been dispatched.' };
+    }
+
+    // 2c. Auto-activate if still in draft
+    if (seq.status === 'draft') {
+      const draftTime = new Date().toISOString();
+      db.prepare(`
+        UPDATE outreach_sequences
+        SET status = 'active', approved_at = ?, approved_by = 'sales_operator', updated_at = ?
+        WHERE id = ?
+      `).run(draftTime, draftTime, sequenceId);
     }
 
     // 3. Find current step message
@@ -304,6 +324,13 @@ export class SequenceQueueService {
       SET status = 'sent', provider_message_id = ?, sent_at = ?, updated_at = ?
       WHERE id = ?
     `).run(sendResult.providerMessageId || null, now, now, msg.id);
+
+    // Advance lead status to Contacted if New or Qualified
+    db.prepare(`
+      UPDATE leads
+      SET status = 'Contacted', updated_at = ?
+      WHERE id = ? AND status IN ('New', 'Qualified')
+    `).run(now, lead.id);
 
     // Record engagement event
     await engagementService.recordEvent({

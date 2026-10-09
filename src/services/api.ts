@@ -522,8 +522,8 @@ export const api = {
     });
   },
 
-  async sendOutreachSequenceNow(id: string): Promise<{ data: OutreachSequence; messageId?: string }> {
-    return request<{ data: OutreachSequence; messageId?: string }>(
+  async sendOutreachSequenceNow(id: string): Promise<OutreachSequence> {
+    return request<OutreachSequence>(
       `/api/outreach/sequences/${encodeURIComponent(id)}/send-now`,
       {
         method: 'POST',
@@ -556,6 +556,36 @@ export const api = {
         body: JSON.stringify({ leadId, customInstructions }),
       }
     );
+  },
+
+  async agenticSendOutreach(data: {
+    leadId?: string;
+    sequenceId?: string;
+    campaignId?: string;
+    customInstructions?: string;
+    autoSyncCrm?: boolean;
+  }): Promise<{
+    success: boolean;
+    sequence?: OutreachSequence;
+    messageId?: string;
+    stepNumber?: number;
+    recipientEmail?: string;
+    emailSubject?: string;
+    emailPreview?: string;
+    crmRecord?: CrmSyncRecord;
+    trace: Array<{
+      phase: string;
+      name: string;
+      status: 'pending' | 'success' | 'failed' | 'skipped';
+      detail: string;
+      timestamp: string;
+    }>;
+    error?: string;
+  }> {
+    return request('/api/outreach/agentic-send', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   },
 
   // Phase 5: Engagement Events & Suppression

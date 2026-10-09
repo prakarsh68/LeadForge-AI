@@ -78,6 +78,15 @@ export const OutreachView: React.FC<OutreachViewProps> = ({
   const [newCampaignName, setNewCampaignName] = useState<string>('');
   const [newCampaignDesc, setNewCampaignDesc] = useState<string>('');
 
+  // Agentic Dispatch & Model State
+  const [showAgenticModal, setShowAgenticModal] = useState<boolean>(false);
+  const [agenticLeadId, setAgenticLeadId] = useState<string>('');
+  const [agenticCustomPrompt, setAgenticCustomPrompt] = useState<string>('');
+  const [agenticAutoCrm, setAgenticAutoCrm] = useState<boolean>(true);
+  const [isAgenticSending, setIsAgenticSending] = useState<boolean>(false);
+  const [agenticResult, setAgenticResult] = useState<any | null>(null);
+  const [showAgenticResultModal, setShowAgenticResultModal] = useState<boolean>(false);
+
   const [isSyncingCrm, setIsSyncingCrm] = useState<boolean>(false);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -229,13 +238,64 @@ export const OutreachView: React.FC<OutreachViewProps> = ({
   const handleSendNow = async (seqId: string) => {
     try {
       const result = await api.sendOutreachSequenceNow(seqId);
-      setSequences((prev) => prev.map((s) => (s.id === seqId ? result.data : s)));
-      showToast(`Step message successfully dispatched! ID: ${result.messageId || 'simulated'}`);
+      const updatedSeq: OutreachSequence =
+        (result && (result as any).id)
+          ? (result as any)
+          : ((result as any)?.sequence || (result as any)?.data);
+
+      if (updatedSeq && updatedSeq.id) {
+        setSequences((prev) => prev.map((s) => (s.id === seqId ? updatedSeq : s)));
+      } else {
+        const reloaded = await api.getOutreachSequence(seqId);
+        setSequences((prev) => prev.map((s) => (s.id === seqId ? reloaded : s)));
+      }
+
+      showToast(`Step message successfully dispatched! ID: ${(result as any)?.messageId || 'simulated'}`);
       // Refresh analytics
       api.getOutreachAnalytics().then((a) => setAnalytics(a)).catch(() => {});
       if (onRefreshLeads) onRefreshLeads();
     } catch (err: any) {
       setErrorMessage(`Dispatch failed: ${err.message}`);
+    }
+  };
+
+  const handleAgenticSend = async (options?: { seqId?: string; leadId?: string }) => {
+    setIsAgenticSending(true);
+    setErrorMessage(null);
+    try {
+      const targetSeqId = options?.seqId || (showAgenticModal ? undefined : selectedSequenceId || undefined);
+      const targetLeadId = options?.leadId || agenticLeadId || (options?.seqId ? undefined : currentSequence?.leadId);
+
+      const res = await api.agenticSendOutreach({
+        sequenceId: targetSeqId,
+        leadId: targetLeadId,
+        customInstructions: agenticCustomPrompt || undefined,
+        autoSyncCrm: agenticAutoCrm,
+      });
+
+      if (res.sequence) {
+        setSequences((prev) => {
+          const exists = prev.some((s) => s.id === res.sequence!.id);
+          return exists
+            ? prev.map((s) => (s.id === res.sequence!.id ? res.sequence! : s))
+            : [res.sequence!, ...prev];
+        });
+        setSelectedSequenceId(res.sequence.id);
+      }
+
+      setAgenticResult(res);
+      setShowAgenticModal(false);
+      setShowAgenticResultModal(true);
+      showToast(`Agentic model successfully dispatched message to ${res.recipientEmail}!`);
+
+      // Refresh analytics and CRM status
+      api.getOutreachAnalytics().then((a) => setAnalytics(a)).catch(() => {});
+      api.getCrmStatus().then((st) => setCrmStatus(st)).catch(() => {});
+      if (onRefreshLeads) onRefreshLeads();
+    } catch (err: any) {
+      setErrorMessage(`Agentic dispatch failed: ${err.message}`);
+    } finally {
+      setIsAgenticSending(false);
     }
   };
 
@@ -393,8 +453,20 @@ export const OutreachView: React.FC<OutreachViewProps> = ({
           </button>
 
           <button
+            onClick={() => {
+              setAgenticLeadId(currentSequence?.leadId || leads[0]?.id || '');
+              setShowAgenticModal(true);
+            }}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-xs font-bold text-white shadow-lg shadow-purple-600/25 border border-purple-400/30 transition-all cursor-pointer"
+            title="Launch autonomous agent to formulate grounded copy, verify deliverability, dispatch message, and sync CRM"
+          >
+            <Sparkles className="h-4 w-4 text-amber-300 animate-pulse" />
+            Autonomous Agentic Send
+          </button>
+
+          <button
             onClick={() => setShowEnrollModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 text-xs font-bold text-white shadow-lg shadow-indigo-600/20 hover:from-indigo-500 hover:to-indigo-400 transition-all"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 text-xs font-bold text-white shadow-lg shadow-indigo-600/20 hover:from-indigo-500 hover:to-indigo-400 transition-all cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             Enroll Lead Sequence
@@ -683,11 +755,24 @@ export const OutreachView: React.FC<OutreachViewProps> = ({
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Agentic 1-Click Send & CRM Sync */}
+                    {currentSequence.status !== 'completed' && currentSequence.status !== 'cancelled' && (
+                      <button
+                        onClick={() => handleAgenticSend({ seqId: currentSequence.id, leadId: currentSequence.leadId })}
+                        disabled={isAgenticSending}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold transition-all shadow-md shadow-purple-900/40 disabled:opacity-50 text-xs cursor-pointer"
+                        title="Agentic Send: Validates compliance, crafts grounded copy, dispatches email, and syncs HubSpot CRM"
+                      >
+                        <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+                        {isAgenticSending ? 'Agent Sending & Syncing...' : `Agentic Send Step ${currentSequence.currentStep} & Sync CRM`}
+                      </button>
+                    )}
+
                     {currentSequence.status === 'draft' && (
                       <button
                         onClick={() => handleApproveSequence(currentSequence.id)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-colors cursor-pointer"
                       >
                         <CheckCircle2 className="h-3.5 w-3.5" />
                         Approve & Launch
@@ -1193,6 +1278,217 @@ export const OutreachView: React.FC<OutreachViewProps> = ({
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Modal: Autonomous Agentic Outreach */}
+      {showAgenticModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="w-full max-w-xl p-6 rounded-2xl border border-purple-500/30 bg-slate-900 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+                  <Sparkles className="h-5 w-5 text-amber-300" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Autonomous Agentic Outreach & CRM Dispatch</h3>
+                  <p className="text-xs text-purple-300">Phase 5 + 6B Autonomous Multichannel Execution</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAgenticModal(false)}
+                className="text-xs text-slate-400 hover:text-white"
+              >
+                Close
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300">
+              The LeadForge AI Agent will evaluate lead triggers, retrieve collateral citations via RAG, verify CAN-SPAM deliverability, dispatch the message via the email provider, and synchronize CRM pipeline stages.
+            </p>
+
+            <div className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Select Target Prospect</label>
+                <select
+                  value={agenticLeadId}
+                  onChange={(e) => setAgenticLeadId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-950 text-xs text-white focus:outline-none focus:border-purple-500"
+                >
+                  <option value="">-- Choose Prospect --</option>
+                  {leads.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name} — {l.company} ({l.email || 'No email'}, {l.status})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Selected Lead Profile Snapshot */}
+              {(() => {
+                const sel = leads.find((l) => l.id === agenticLeadId);
+                if (!sel) return null;
+                return (
+                  <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 text-xs space-y-1.5">
+                    <div className="flex items-center justify-between font-bold text-white">
+                      <span>{sel.name} • {sel.title}</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-700/40">
+                        {sel.tier.toUpperCase()} ICP ({sel.score}/100)
+                      </span>
+                    </div>
+                    <div className="text-slate-400 flex items-center gap-2">
+                      <span>Email: <strong className={sel.email ? 'text-emerald-400' : 'text-rose-400'}>{sel.email || 'Missing'}</strong></span>
+                      <span>•</span>
+                      <span>Company: {sel.company}</span>
+                    </div>
+                    {sel.triggers && sel.triggers.length > 0 && (
+                      <div className="text-[11px] text-amber-300">
+                        Buying Trigger: {sel.triggers[0]}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Strategic Guidance / Prompt Overrides (Optional)
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="e.g. Highlight series B revenue expansion, emphasize 3-minute setup, and ask for a 10-minute intro..."
+                  value={agenticCustomPrompt}
+                  onChange={(e) => setAgenticCustomPrompt(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-950 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-800 bg-slate-950/40">
+                <input
+                  type="checkbox"
+                  id="agenticAutoCrm"
+                  checked={agenticAutoCrm}
+                  onChange={(e) => setAgenticAutoCrm(e.target.checked)}
+                  className="rounded border-slate-700 text-purple-600 focus:ring-purple-500"
+                />
+                <label htmlFor="agenticAutoCrm" className="text-xs text-slate-300 flex items-center gap-1.5 cursor-pointer">
+                  <Database className="h-3.5 w-3.5 text-amber-400" />
+                  Automatically synchronize contact, stage, and deal records to HubSpot CRM upon send
+                </label>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+              <button
+                onClick={() => setShowAgenticModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-700 text-xs font-semibold text-slate-300 hover:bg-slate-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleAgenticSend({ leadId: agenticLeadId })}
+                disabled={!agenticLeadId || isAgenticSending}
+                className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-xs font-bold text-white transition-all disabled:opacity-50 cursor-pointer shadow-lg shadow-purple-900/30"
+              >
+                <Sparkles className="h-4 w-4 text-amber-300" />
+                {isAgenticSending ? 'Executing Agentic Pipeline...' : 'Execute Agentic Send & CRM Sync'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Agentic Execution Result & Trace */}
+      {showAgenticResultModal && agenticResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="w-full max-w-2xl p-6 rounded-2xl border border-emerald-500/30 bg-slate-900 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Autonomous Agentic Outreach Dispatched</h3>
+                  <p className="text-xs text-emerald-400">Message successfully transmitted & CRM state updated</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAgenticResultModal(false)}
+                className="text-xs text-slate-400 hover:text-white"
+              >
+                Close
+              </button>
+            </div>
+
+            {/* Quick Summary Pill Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+              <div className="p-2.5 rounded-xl border border-slate-800 bg-slate-950/60">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Recipient</span>
+                <span className="font-semibold text-white truncate block">{agenticResult.recipientEmail}</span>
+              </div>
+              <div className="p-2.5 rounded-xl border border-slate-800 bg-slate-950/60">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Sequence Step</span>
+                <span className="font-semibold text-indigo-300 block">Step {agenticResult.stepNumber} of 3</span>
+              </div>
+              <div className="p-2.5 rounded-xl border border-slate-800 bg-slate-950/60">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Provider ID</span>
+                <span className="font-semibold text-cyan-300 truncate block">{agenticResult.messageId || 'simulated'}</span>
+              </div>
+              <div className="p-2.5 rounded-xl border border-slate-800 bg-slate-950/60">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">HubSpot CRM</span>
+                <span className="font-semibold text-amber-400 block">
+                  {agenticResult.crmRecord ? 'Synchronized' : 'Skipped'}
+                </span>
+              </div>
+            </div>
+
+            {/* Agentic Execution Trace List */}
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-purple-400" />
+                Agentic Pipeline Execution Trace ({agenticResult.trace?.length || 0} stages)
+              </h4>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                {(agenticResult.trace || []).map((t: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className="p-2.5 rounded-xl border border-slate-800 bg-slate-950/50 flex items-start gap-2.5 text-xs"
+                  >
+                    <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <div className="flex-1 space-y-0.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-200">{t.name}</span>
+                        <span className="text-[10px] text-slate-500">
+                          {new Date(t.timestamp).toLocaleTimeString()}
+                        </span>
+                      </div>
+                      <p className="text-slate-400 text-[11px]">{t.detail}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Email Message Preview */}
+            <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/70 text-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold text-slate-400">Dispatched Message Content</span>
+                <span className="text-indigo-400 font-semibold">{agenticResult.emailSubject}</span>
+              </div>
+              <p className="text-slate-300 text-xs leading-relaxed italic bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
+                "{agenticResult.emailPreview}..."
+              </p>
+            </div>
+
+            <div className="pt-3 border-t border-slate-800 flex justify-end gap-2">
+              <button
+                onClick={() => setShowAgenticResultModal(false)}
+                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white transition-colors cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

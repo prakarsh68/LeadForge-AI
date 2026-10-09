@@ -5,6 +5,7 @@ import { emailGeneratorService } from '../services/outreach/emailGeneratorServic
 import { engagementService } from '../services/outreach/engagementService.js';
 import { outreachAnalyticsService } from '../services/outreach/outreachAnalyticsService.js';
 import { leadService } from '../services/leadService.js';
+import { agenticOutreachService } from '../services/outreach/agenticOutreachService.js';
 
 export const outreachController = {
   // Campaigns
@@ -224,6 +225,34 @@ export const outreachController = {
       res.json({ success: true, data: draftResult });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message || 'Failed to generate drafts' });
+    }
+  },
+
+  // Agentic Autonomous Dispatch & CRM Sync
+  async agenticSend(req: Request, res: Response): Promise<void> {
+    try {
+      const { leadId, sequenceId, campaignId, customInstructions, autoSyncCrm } = req.body;
+      if (!leadId && !sequenceId) {
+        res.status(400).json({ success: false, error: 'Either leadId or sequenceId is required for agentic dispatch' });
+        return;
+      }
+
+      const result = await agenticOutreachService.executeAgenticSend({
+        leadId,
+        sequenceId,
+        campaignId,
+        customInstructions,
+        autoSyncCrm: autoSyncCrm !== undefined ? Boolean(autoSyncCrm) : true,
+      });
+
+      if (!result.success) {
+        res.status(400).json({ success: false, error: result.error, data: result });
+        return;
+      }
+
+      res.status(200).json({ success: true, data: result });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message || 'Autonomous agentic dispatch failed' });
     }
   },
 

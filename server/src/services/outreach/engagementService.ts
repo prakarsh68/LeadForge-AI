@@ -20,6 +20,7 @@ export interface IngestEventOptions {
 
 export const engagementService = {
   isSuppressed(email: string): boolean {
+    if (!email || typeof email !== 'string') return false;
     const db = getDb();
     const cleanEmail = email.trim().toLowerCase();
     const row = db.prepare('SELECT id FROM suppression_list WHERE email = ?').get(cleanEmail);
@@ -27,6 +28,9 @@ export const engagementService = {
   },
 
   addToSuppressionList(email: string, reason: SuppressionReason, source: string = 'system'): SuppressionDTO {
+    if (!email || typeof email !== 'string') {
+      throw new Error('Valid email address is required');
+    }
     const db = getDb();
     const cleanEmail = email.trim().toLowerCase();
     const existing = db.prepare('SELECT * FROM suppression_list WHERE email = ?').get(cleanEmail) as any;

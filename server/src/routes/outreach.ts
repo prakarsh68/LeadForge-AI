@@ -21,8 +21,9 @@ outreachRouter.post('/outreach/sequences/:id/cancel', (req, res) => outreachCont
 outreachRouter.post('/outreach/sequences/:id/send-now', (req, res) => outreachController.sendNow(req, res));
 outreachRouter.put('/outreach/sequences/:id/messages/:step', (req, res) => outreachController.updateMessage(req, res));
 
-// Draft Generation
+// Draft Generation & Agentic Dispatch
 outreachRouter.post('/outreach/generate', (req, res) => outreachController.generateDraft(req, res));
+outreachRouter.post('/outreach/agentic-send', (req, res) => outreachController.agenticSend(req, res));
 
 // Engagement & Webhooks
 outreachRouter.post('/outreach/events', (req, res) => outreachController.recordEvent(req, res));

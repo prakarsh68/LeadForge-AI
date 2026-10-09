@@ -5,6 +5,7 @@ import { emailGeneratorService } from '../services/outreach/emailGeneratorServic
 import { sequenceQueueService } from '../services/outreach/sequenceQueueService.js';
 import { engagementService } from '../services/outreach/engagementService.js';
 import { MockEmailProvider, setEmailProvider } from '../services/outreach/emailProvider.js';
+import { agenticOutreachService } from '../services/outreach/agenticOutreachService.js';
 import type { LeadDTO } from '../types/index.js';
 
 describe('Phase 5: Personalized Outreach, Engagement Intelligence & CRM Integration', () => {
@@ -378,6 +379,112 @@ describe('Phase 5: Personalized Outreach, Engagement Intelligence & CRM Integrat
       });
       assert.equal(delRes.status, 200);
       assert.ok(delRes.body.success);
+    });
+  });
+
+  describe('Agentic Outreach & CRM Dispatch System', () => {
+    it('autonomously generates sequence, approves, dispatches message, and syncs HubSpot CRM', async () => {
+      mockEmailProvider.clearHistory();
+
+      const result = await agenticOutreachService.executeAgenticSend({
+        leadId: 'lead-1',
+        customInstructions: 'Focus on revenue infrastructure',
+        autoSyncCrm: true,
+      });
+
+      assert.ok(result.success);
+      assert.ok(result.sequence);
+      assert.equal(result.recipientEmail, 'elena.rostova@cloudscale.io');
+      assert.ok(result.messageId);
+      assert.ok(result.trace.length >= 6);
+      assert.ok(result.crmRecord);
+
+      // Verify email was sent by mock provider
+      const sentHistory = mockEmailProvider.getHistory();
+      assert.ok(sentHistory.length >= 1);
+      assert.equal(sentHistory[sentHistory.length - 1].to, 'elena.rostova@cloudscale.io');
+
+      // Verify lead lifecycle status updated to Contacted
+      const leadRow = ctx.db.prepare('SELECT status FROM leads WHERE id = ?').get('lead-1') as any;
+      assert.equal(leadRow.status, 'Contacted');
+    });
+
+    it('blocks outreach and returns a compliance error when recipient is suppressed', async () => {
+      // Suppress lead-2 email
+      engagementService.addToSuppressionList('marcus.s@apexdata.ai', 'unsubscribed', 'test');
+
+      const result = await agenticOutreachService.executeAgenticSend({
+        leadId: 'lead-2',
+      });
+
+      assert.equal(result.success, false);
+      assert.ok(result.error?.toLowerCase().includes('suppression'));
+      const suppTrace = result.trace.find((t) => t.phase === 'compliance_verification');
+      assert.ok(suppTrace);
+      assert.equal(suppTrace.status, 'failed');
+    });
+
+    it('rejects outreach with friendly error when lead has missing email', async () => {
+      // Create lead without email
+      ctx.db.prepare(`
+        INSERT INTO leads (
+          id, name, title, company, company_domain, email, location, industry,
+          company_size, score, tier, status, deal_value, created_at, updated_at
+        ) VALUES (
+          'lead-no-email', 'Ghost Prospect', 'Director', 'Phantom Corp', 'phantom.io',
+          '', 'Austin', 'Enterprise Software', '100-200', 85, 'high', 'New', 50000,
+          datetime('now'), datetime('now')
+        )
+      `).run();
+
+      const result = await agenticOutreachService.executeAgenticSend({
+        leadId: 'lead-no-email',
+      });
+
+      assert.equal(result.success, false);
+      assert.ok(result.error?.toLowerCase().includes('missing a work email'));
+    });
+
+    it('executes agentic dispatch via POST /api/outreach/agentic-send endpoint', async () => {
+      mockEmailProvider.clearHistory();
+
+      const res = await ctx.request('/api/outreach/agentic-send', {
+        method: 'POST',
+        body: JSON.stringify({
+          leadId: 'lead-5',
+          autoSyncCrm: true,
+        }),
+      });
+
+      assert.equal(res.status, 200);
+      assert.ok(res.body.success);
+      assert.ok(res.body.data.sequence);
+      assert.equal(res.body.data.recipientEmail, 'amara@synthetixbio.com');
+      assert.ok(res.body.data.messageId);
+      assert.ok(Array.isArray(res.body.data.trace));
+    });
+
+    it('executes agentic outreach on an existing sequence by sequenceId', async () => {
+      mockEmailProvider.clearHistory();
+
+      // Create a sequence for lead-6
+      const seq = sequenceQueueService.createSequence('lead-6', 'camp-1');
+      assert.equal(seq.status, 'draft');
+
+      const result = await agenticOutreachService.executeAgenticSend({
+        sequenceId: seq.id,
+        autoSyncCrm: true,
+      });
+
+      assert.ok(result.success);
+      assert.equal(result.sequence?.id, seq.id);
+      assert.equal(result.recipientEmail, 'jmeyer@kryptonsec.com');
+      assert.ok(result.messageId);
+      assert.ok(result.crmRecord);
+
+      // Verify lead lifecycle status updated to Contacted
+      const leadRow = ctx.db.prepare('SELECT status FROM leads WHERE id = ?').get('lead-6') as any;
+      assert.equal(leadRow.status, 'Contacted');
     });
   });
 });

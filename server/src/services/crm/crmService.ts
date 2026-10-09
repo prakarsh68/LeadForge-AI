@@ -86,7 +86,8 @@ export class HubSpotCrmConnector implements ICrmConnector {
     // If no access token configured or in test mode, safely simulate
     if (!this.accessToken || process.env.NODE_ENV === 'test') {
       const externalContactId = `hs-contact-${Date.now().toString(36)}`;
-      const externalCompanyId = `hs-company-${lead.company_domain.replace(/[^a-zA-Z0-9]/g, '')}`;
+      const domainSafe = (lead.company_domain || lead.company || 'unknown').replace(/[^a-zA-Z0-9]/g, '');
+      const externalCompanyId = `hs-company-${domainSafe || 'default'}`;
       const externalDealId = opp ? `hs-deal-${opp.id}` : null;
 
       db.prepare(`
@@ -285,4 +286,13 @@ export function getCrmConnector(): ICrmConnector {
 export function setCrmConnector(connector: ICrmConnector): void {
   activeCrmConnector = connector;
 }
+
+export const crmService = {
+  syncLead(leadId: string): Promise<CrmSyncResult> {
+    return getCrmConnector().syncLead(leadId);
+  },
+  getStatus(): CrmStatusDTO {
+    return getCrmConnector().getStatus();
+  },
+};
 
