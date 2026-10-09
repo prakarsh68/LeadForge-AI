@@ -16,6 +16,7 @@ import {
   Trash2,
   ShieldCheck,
   Info,
+  ExternalLink,
 } from 'lucide-react';
 
 interface LeadDetailModalProps {
@@ -383,6 +384,51 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
               </span>
             </div>
           </div>
+
+          {/* Discovery & Provider Provenance (when imported via discovery) */}
+          {lead.sourceProvider && (
+            <div className="rounded-xl border border-indigo-500/30 bg-slate-950/60 p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-indigo-400" />
+                  Discovery & Provider Provenance
+                </span>
+                <span className="rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 text-[10px] font-bold uppercase">
+                  {lead.isMock ? 'Demo Mock Sandbox' : 'Live Provider'}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                <div>
+                  <span className="text-slate-400 text-[11px] block">Provider</span>
+                  <span className="font-semibold text-slate-200 capitalize">
+                    {lead.sourceProvider === 'hunter' ? 'Hunter.io API v2' : 'LeadForge Mock Provider'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 text-[11px] block">Email Verification</span>
+                  <span className="font-semibold text-emerald-400 capitalize">
+                    {lead.emailVerificationStatus || 'Unverified'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 text-[11px] block">Source Evidence</span>
+                  {lead.sourceUrl ? (
+                    <a
+                      href={lead.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-indigo-400 hover:text-indigo-300 underline font-mono text-[11px]"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      View Link
+                    </a>
+                  ) : (
+                    <span className="text-slate-500 italic text-[11px]">None recorded</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* SDR & Agent Notes with Editing */}
           <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3.5">

@@ -11,6 +11,7 @@ import type {
   DiscoveryProviderStatus,
   DiscoveryJob,
   DiscoveredCandidate,
+  IngestBatchResult,
 } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
@@ -319,6 +320,26 @@ export const api = {
       candidate: DiscoveredCandidate;
     }>(`/api/discovery/candidates/${encodeURIComponent(candidateId)}/ingest`, {
       method: 'POST',
+    });
+  },
+
+  async getAllDiscoveryJobs(limit?: number): Promise<DiscoveryJob[]> {
+    const qs = limit ? `?limit=${encodeURIComponent(limit)}` : '';
+    return request<DiscoveryJob[]>(`/api/discovery/jobs${qs}`);
+  },
+
+  async getAllDiscoveredCandidates(filters?: { status?: string; limit?: number }): Promise<DiscoveredCandidate[]> {
+    const params = new URLSearchParams();
+    if (filters?.status) params.set('status', filters.status);
+    if (filters?.limit) params.set('limit', String(filters.limit));
+    const qs = params.toString();
+    return request<DiscoveredCandidate[]>(`/api/discovery/candidates${qs ? `?${qs}` : ''}`);
+  },
+
+  async ingestCandidatesBatch(candidateIds: string[]): Promise<IngestBatchResult> {
+    return request<IngestBatchResult>('/api/discovery/candidates/ingest-batch', {
+      method: 'POST',
+      body: JSON.stringify({ candidateIds }),
     });
   },
 };

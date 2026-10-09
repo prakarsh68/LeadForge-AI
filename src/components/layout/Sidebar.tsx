@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   X,
   Flame,
+  Compass,
 } from 'lucide-react';
 import type { ViewType, IcpProfile } from '../../types';
 
@@ -42,6 +43,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navItems: { id: ViewType; label: string; icon: React.ElementType; badge?: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'icp', label: 'ICP Setup', icon: Target },
+    { id: 'discovery', label: 'Discovery Engine', icon: Compass, badge: 'New' },
     { id: 'leads', label: 'Leads', icon: Users, badge: `${leadsCount}` },
     { id: 'pipeline', label: 'Pipeline', icon: Kanban, badge: formattedPipeline },
     { id: 'knowledge', label: 'Knowledge Base', icon: BookOpen, badge: `${docsCount} docs` },

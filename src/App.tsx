@@ -9,6 +9,7 @@ import { IcpSetupView } from './components/icp/IcpSetupView';
 import { LeadsView } from './components/leads/LeadsView';
 import { PipelineView } from './components/pipeline/PipelineView';
 import { KnowledgeBaseView } from './components/knowledge/KnowledgeBaseView';
+import { DiscoveryView } from './components/discovery/DiscoveryView';
 import { LeadDetailModal } from './components/leads/LeadDetailModal';
 import { AlertTriangle, RefreshCw, X, CheckCircle2 } from 'lucide-react';
 
@@ -571,6 +572,31 @@ export const App: React.FC = () => {
                   key={icpProfile.id || icpProfile.name}
                   initialProfile={icpProfile}
                   onSaveProfile={handleSaveProfile}
+                />
+              )}
+
+              {currentView === 'discovery' && (
+                <DiscoveryView
+                  onCandidatesIngested={async () => {
+                    const [leadsData, summaryData, activitiesData] = await Promise.all([
+                      api.getLeads().catch(() => null),
+                      api.getPipelineSummary().catch(() => null),
+                      api.getActivities({ limit: 20 }).catch(() => null),
+                    ]);
+                    if (leadsData && leadsData.leads) {
+                      setLeads(leadsData.leads);
+                      storage.saveLeads(leadsData.leads);
+                    }
+                    if (summaryData) {
+                      setPipelineSummary(summaryData);
+                    }
+                    if (activitiesData) {
+                      setActivities(activitiesData);
+                      storage.saveActivities(activitiesData);
+                    }
+                    showNotice('Candidates successfully ingested into CRM and Sales Pipeline.');
+                  }}
+                  onNavigateToLeads={() => setCurrentView('leads')}
                 />
               )}
 

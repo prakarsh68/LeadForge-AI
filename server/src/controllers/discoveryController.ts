@@ -105,4 +105,61 @@ export const discoveryController = {
       });
     }
   },
+
+  getAllJobs(req: Request, res: Response, next: NextFunction): void {
+    try {
+      const limit = req.query.limit ? Number(req.query.limit) : 20;
+      const jobs = discoveryService.getAllJobs(limit);
+      res.status(200).json({
+        success: true,
+        data: jobs,
+        meta: { count: jobs.length },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  getAllCandidates(req: Request, res: Response, next: NextFunction): void {
+    try {
+      const { status, limit } = req.query;
+      const candidates = discoveryService.getAllCandidates({
+        status: typeof status === 'string' ? status : undefined,
+        limit: limit ? Number(limit) : 50,
+      });
+      res.status(200).json({
+        success: true,
+        data: candidates,
+        meta: { count: candidates.length },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  ingestBatch(req: Request, res: Response, _next: NextFunction): void {
+    try {
+      const { candidateIds } = req.body;
+      if (!Array.isArray(candidateIds) || candidateIds.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: 'candidateIds must be a non-empty array of candidate IDs.',
+        });
+        return;
+      }
+
+      const results = discoveryService.ingestBatch(candidateIds);
+      res.status(200).json({
+        success: true,
+        data: results,
+        message: `Batch ingestion complete: ${results.counts.ingested} created, ${results.counts.skipped} skipped, ${results.counts.failed} failed.`,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message || 'Batch ingestion failed.',
+      });
+    }
+  },
 };
+

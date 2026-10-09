@@ -223,6 +223,80 @@ describe('Discovery Subsystem & Provider Foundation (/api/discovery)', () => {
   });
 
   // ==============================================================
+  // 5B. BATCH INGESTION & QUERY ENDPOINTS (PHASE 3B.3)
+  // ==============================================================
+  test('GET /api/discovery/jobs and /api/discovery/candidates list staged records', async () => {
+    const jobsRes = await ctx.request('/api/discovery/jobs?limit=10');
+    assert.equal(jobsRes.status, 200);
+    assert.equal(jobsRes.body.success, true);
+    assert.ok(Array.isArray(jobsRes.body.data));
+    assert.ok(jobsRes.body.data.length > 0);
+
+    const candidatesRes = await ctx.request('/api/discovery/candidates?limit=20');
+    assert.equal(candidatesRes.status, 200);
+    assert.equal(candidatesRes.body.success, true);
+    assert.ok(Array.isArray(candidatesRes.body.data));
+    assert.ok(candidatesRes.body.data.length > 0);
+  });
+
+  test('POST /api/discovery/candidates/ingest-batch processes eligible candidates and reports breakdown', async () => {
+    // 1. Run fresh discovery job
+    const jobRes = await ctx.request('/api/discovery/jobs', {
+      method: 'POST',
+      body: JSON.stringify({
+        provider: 'mock',
+        domain: 'batch-test-company.io',
+        limit: 3,
+      }),
+    });
+    assert.equal(jobRes.status, 201);
+    const candidates = jobRes.body.data.candidates;
+    assert.ok(candidates.length >= 2);
+
+    const cand1Id = candidates[0].id;
+    const cand2Id = candidates[1].id;
+
+    // 2. Ingest batch containing cand1 and cand2
+    const batchRes = await ctx.request('/api/discovery/candidates/ingest-batch', {
+      method: 'POST',
+      body: JSON.stringify({
+        candidateIds: [cand1Id, cand2Id, 'non-existent-candidate-id'],
+      }),
+    });
+
+    assert.equal(batchRes.status, 200);
+    assert.equal(batchRes.body.success, true);
+    assert.equal(batchRes.body.data.counts.total, 3);
+    assert.equal(batchRes.body.data.counts.ingested, 2);
+    assert.equal(batchRes.body.data.counts.skipped, 0);
+    assert.equal(batchRes.body.data.counts.failed, 1);
+    assert.equal(batchRes.body.data.failed[0].candidateId, 'non-existent-candidate-id');
+
+    // 3. Re-ingesting cand1 should now be skipped cleanly
+    const reIngestRes = await ctx.request('/api/discovery/candidates/ingest-batch', {
+      method: 'POST',
+      body: JSON.stringify({
+        candidateIds: [cand1Id],
+      }),
+    });
+    assert.equal(reIngestRes.status, 200);
+    assert.equal(reIngestRes.body.data.counts.ingested, 0);
+    assert.equal(reIngestRes.body.data.counts.skipped, 1);
+    assert.equal(reIngestRes.body.data.skipped[0].candidateId, cand1Id);
+  });
+
+  test('POST /api/discovery/candidates/ingest-batch rejects empty array', async () => {
+    const res = await ctx.request('/api/discovery/candidates/ingest-batch', {
+      method: 'POST',
+      body: JSON.stringify({
+        candidateIds: [],
+      }),
+    });
+    assert.equal(res.status, 400);
+    assert.equal(res.body.success, false);
+  });
+
+  // ==============================================================
   // 6. HUNTER.IO ADAPTER UNIT TESTS (MOCKED HTTP RESPONSES)
   // ==============================================================
   test('HunterDiscoveryProvider handles success with sources, confidence, and verification', async () => {

@@ -1,4 +1,4 @@
-export type ViewType = 'dashboard' | 'icp' | 'leads' | 'pipeline' | 'knowledge';
+export type ViewType = 'dashboard' | 'icp' | 'discovery' | 'leads' | 'pipeline' | 'knowledge';
 
 export type LeadStatus = 'New' | 'Contacted' | 'Qualified' | 'Proposal' | 'Won' | 'Disqualified';
 
@@ -59,6 +59,16 @@ export interface DiscoveryJob {
   completedAt?: string | null;
 }
 
+export interface FieldProvenance<T = any> {
+  fieldName: string;
+  value: T;
+  sourceProvider: string;
+  sourceUrl?: string | null;
+  retrievedAt: string;
+  verificationStatus: VerificationStatus;
+  confidence?: number | null;
+}
+
 export interface DiscoveredCandidate {
   id: string;
   jobId: string;
@@ -77,6 +87,7 @@ export interface DiscoveredCandidate {
   industry?: string | null;
   companySize?: string | null;
   sourceUrls: string[];
+  provenanceMetadata?: Record<string, FieldProvenance>;
   icpScorePreview?: number | null;
   icpTierPreview?: LeadScoreTier | null;
   dedupStatus: DedupStatus;
@@ -85,6 +96,13 @@ export interface DiscoveredCandidate {
   ingestedLeadId?: string | null;
   isMock: boolean;
   createdAt: string;
+}
+
+export interface IngestBatchResult {
+  ingested: Array<{ lead: Lead; candidateId: string }>;
+  skipped: Array<{ candidateId: string; reason: string }>;
+  failed: Array<{ candidateId: string; error: string }>;
+  counts: { total: number; ingested: number; skipped: number; failed: number };
 }
 
 export type EvaluationStatus = 'match' | 'partial' | 'mismatch' | 'no_data';

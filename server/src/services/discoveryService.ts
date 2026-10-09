@@ -32,6 +32,35 @@ export const discoveryService = {
     return providerRegistry.listStatuses();
   },
 
+  getAllJobs(limit: number = 20): DiscoveryJobDTO[] {
+    const db = getDb();
+    const rows = db.prepare('SELECT * FROM discovery_jobs ORDER BY created_at DESC LIMIT ?').all(Math.min(limit, 100)) as DiscoveryJobEntity[];
+    return rows.map(discoveryJobEntityToDto);
+  },
+
+  getAllCandidates(filters: { status?: string; limit?: number } = {}): DiscoveredCandidateDTO[] {
+    const db = getDb();
+    const conditions: string[] = [];
+    const params: any[] = [];
+
+    if (filters.status) {
+      conditions.push('status = ?');
+      params.push(filters.status);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const limit = Math.min(filters.limit || 50, 200);
+
+    const rows = db.prepare(`
+      SELECT * FROM discovered_candidates
+      ${whereClause}
+      ORDER BY icp_score_preview DESC, created_at DESC
+      LIMIT ?
+    `).all(...params, limit) as DiscoveredCandidateEntity[];
+
+    return rows.map(discoveredCandidateEntityToDto);
+  },
+
   getJob(id: string): DiscoveryJobDTO | null {
     const db = getDb();
     const row = db.prepare('SELECT * FROM discovery_jobs WHERE id = ?').get(id) as DiscoveryJobEntity | undefined;
@@ -355,5 +384,63 @@ export const discoveryService = {
       opportunity: freshOpp,
       candidate: updatedCandidate,
     };
+  },
+
+  ingestBatch(candidateIds: string[]): {
+    ingested: Array<{ lead: LeadDTO; candidateId: string }>;
+    skipped: Array<{ candidateId: string; reason: string }>;
+    failed: Array<{ candidateId: string; error: string }>;
+    counts: { total: number; ingested: number; skipped: number; failed: number };
+  } {
+    const results = {
+      ingested: [] as Array<{ lead: LeadDTO; candidateId: string }>,
+      skipped: [] as Array<{ candidateId: string; reason: string }>,
+      failed: [] as Array<{ candidateId: string; error: string }>,
+      counts: {
+        total: Array.isArray(candidateIds) ? candidateIds.length : 0,
+        ingested: 0,
+        skipped: 0,
+        failed: 0,
+      },
+    };
+
+    if (!Array.isArray(candidateIds) || candidateIds.length === 0) {
+      return results;
+    }
+
+    for (const id of candidateIds) {
+      try {
+        const candidate = this.getCandidateById(id);
+        if (!candidate) {
+          results.failed.push({ candidateId: id, error: `Candidate not found with id ${id}` });
+          continue;
+        }
+
+        if (candidate.status === 'ingested') {
+          results.skipped.push({ candidateId: id, reason: 'Already ingested into CRM' });
+          continue;
+        }
+
+        const { lead } = this.ingestCandidate(id);
+        results.ingested.push({ lead, candidateId: id });
+      } catch (err: any) {
+        results.failed.push({ candidateId: id, error: err.message || 'Unknown ingestion error' });
+      }
+    }
+
+    results.counts.ingested = results.ingested.length;
+    results.counts.skipped = results.skipped.length;
+    results.counts.failed = results.failed.length;
+
+    if (results.counts.ingested > 0) {
+      activityService.log(
+        'discovery',
+        'Bulk Candidates Ingested',
+        `Successfully ingested ${results.counts.ingested} candidates into sales pipeline (${results.counts.skipped} skipped, ${results.counts.failed} failed)`,
+        `${results.counts.ingested} Ingested`
+      );
+    }
+
+    return results;
   },
 };

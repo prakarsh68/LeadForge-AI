@@ -75,3 +75,4 @@ export interface DiscoveryProvider {
 
   searchDomain(query: PeopleDiscoveryQuery): Promise<DiscoveredPersonCandidate[]>;
 }
+
