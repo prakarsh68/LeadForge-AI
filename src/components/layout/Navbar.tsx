@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Menu,
   Search,
@@ -8,13 +8,15 @@ import {
   RefreshCw,
   CheckCircle2,
 } from 'lucide-react';
-import type { ViewType } from '../../types';
-
+import type { ViewType, ActivityItem } from '../../types';
 
 interface NavbarProps {
   currentView: ViewType;
   onOpenMobileMenu: () => void;
-  onQuickAction?: () => void;
+  searchQuery?: string;
+  onSearchChange?: (query: string) => void;
+  onTriggerScan?: () => void;
+  activities?: ActivityItem[];
 }
 
 const VIEW_TITLES: Record<ViewType, { title: string; subtitle: string }> = {
@@ -43,21 +45,41 @@ const VIEW_TITLES: Record<ViewType, { title: string; subtitle: string }> = {
 export const Navbar: React.FC<NavbarProps> = ({
   currentView,
   onOpenMobileMenu,
+  searchQuery = '',
+  onSearchChange,
+  onTriggerScan,
+  activities = [],
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const viewInfo = VIEW_TITLES[currentView];
 
+  // Hotkey listener: Ctrl + K or Cmd + K focuses search bar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const handleSimulateScan = () => {
     setIsScanning(true);
-    setScanMessage('Agent scanning 14 data sources...');
+    setScanMessage('Agent scanning 14 public registers and tech graphs...');
     setTimeout(() => {
       setIsScanning(false);
-      setScanMessage('Completed: 18 high-match leads added!');
-      setTimeout(() => setScanMessage(null), 3000);
-    }, 1500);
+      if (onTriggerScan) {
+        onTriggerScan();
+      }
+      setScanMessage('Completed: 2 new high-match leads discovered & added to repository!');
+      setTimeout(() => setScanMessage(null), 3500);
+    }, 1200);
   };
 
   return (
@@ -88,11 +110,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="relative hidden xl:block w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
+            ref={searchInputRef}
             type="text"
-            placeholder="Search leads, ICP, companies..."
+            placeholder="Search leads, companies..."
+            value={searchQuery}
+            onChange={(e) => onSearchChange?.(e.target.value)}
             className="w-full rounded-xl border border-slate-800 bg-slate-900/80 pl-9 pr-12 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all"
           />
-          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5 rounded border border-slate-700 bg-slate-800 px-1 py-0.5 text-[10px] text-slate-400 font-mono">
+          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5 rounded border border-slate-700 bg-slate-800 px-1 py-0.5 text-[10px] text-slate-400 font-mono pointer-events-none">
             <Command className="h-2.5 w-2.5" /> K
           </div>
         </div>
@@ -132,7 +157,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <Bell className="h-4 w-4" />
             <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-[9px] font-bold text-white shadow-sm">
-              3
+              {Math.min(activities.length, 9)}
             </span>
           </button>
 
@@ -140,41 +165,28 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-2xl z-50 animate-in fade-in zoom-in-95">
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                 <span className="text-xs font-bold text-white">Autonomous Alerts</span>
-                <span className="text-[10px] text-indigo-400 font-medium cursor-pointer hover:underline">
-                  Mark all read
+                <span
+                  onClick={() => setShowNotifications(false)}
+                  className="text-[10px] text-indigo-400 font-medium cursor-pointer hover:underline"
+                >
+                  Close
                 </span>
               </div>
-              <div className="mt-3 space-y-3">
-                <div className="rounded-lg bg-slate-800/60 p-2.5 text-xs">
-                  <div className="flex items-center gap-1.5 font-semibold text-emerald-400">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    New High-Fit Lead
-                  </div>
-                  <p className="mt-0.5 text-slate-300">
-                    Elena Rostova (CloudScale Nexus) scored 96/100 fit.
-                  </p>
-                  <span className="mt-1 block text-[10px] text-slate-500">12 mins ago</span>
-                </div>
-                <div className="rounded-lg bg-slate-800/60 p-2.5 text-xs">
-                  <div className="flex items-center gap-1.5 font-semibold text-indigo-400">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Autonomous Email Dispatched
-                  </div>
-                  <p className="mt-0.5 text-slate-300">
-                    Sent personalized case study to Marcus Sterling (Apex Data).
-                  </p>
-                  <span className="mt-1 block text-[10px] text-slate-500">42 mins ago</span>
-                </div>
-                <div className="rounded-lg bg-slate-800/60 p-2.5 text-xs">
-                  <div className="flex items-center gap-1.5 font-semibold text-amber-400">
-                    <RefreshCw className="h-3.5 w-3.5" />
-                    Knowledge Base Re-indexed
-                  </div>
-                  <p className="mt-0.5 text-slate-300">
-                    Product Architecture doc embedded into vector cache.
-                  </p>
-                  <span className="mt-1 block text-[10px] text-slate-500">2 hours ago</span>
-                </div>
+              <div className="mt-3 space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                {activities.length === 0 ? (
+                  <p className="text-xs text-slate-500 py-3 text-center">No alerts yet</p>
+                ) : (
+                  activities.slice(0, 4).map((act) => (
+                    <div key={act.id} className="rounded-lg bg-slate-800/60 p-2.5 text-xs">
+                      <div className="flex items-center gap-1.5 font-semibold text-emerald-400">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        {act.title}
+                      </div>
+                      <p className="mt-0.5 text-slate-300 line-clamp-2">{act.description}</p>
+                      <span className="mt-1 block text-[10px] text-slate-500">{act.timestamp}</span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}

@@ -1,5 +1,5 @@
-import React from 'react';
-import type { Lead } from '../../types';
+import React, { useState } from 'react';
+import type { Lead, LeadStatus } from '../../types';
 import {
   X,
   Building,
@@ -8,24 +8,52 @@ import {
   Sparkles,
   Zap,
   Kanban,
+  CheckCircle2,
 } from 'lucide-react';
-
 
 interface LeadDetailModalProps {
   lead: Lead | null;
   onClose: () => void;
   onMoveToPipeline?: (leadId: string) => void;
+  onUpdateStatus?: (leadId: string, status: LeadStatus) => void;
+  onUpdateNotes?: (leadId: string, notes: string) => void;
 }
+
+const ALL_STAGES: LeadStatus[] = [
+  'New',
+  'Contacted',
+  'Qualified',
+  'Proposal',
+  'Won',
+  'Disqualified',
+];
 
 export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   lead,
   onClose,
   onMoveToPipeline,
+  onUpdateStatus,
+  onUpdateNotes,
 }) => {
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesValue, setNotesValue] = useState(lead?.notes || '');
+  const [savedNotesToast, setSavedNotesToast] = useState(false);
+
+
   if (!lead) return null;
 
+  const handleSaveNotes = () => {
+    onUpdateNotes?.(lead.id, notesValue);
+    setEditingNotes(false);
+    setSavedNotesToast(true);
+    setTimeout(() => setSavedNotesToast(false), 2000);
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200"
+      onClick={onClose}
+    >
       <div
         className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
@@ -81,7 +109,9 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                 <Sparkles className="h-4 w-4 text-amber-400" />
                 Autonomous Fit Analysis
               </span>
-              <span className="text-xs font-mono font-bold text-emerald-400">Tier A Priority</span>
+              <span className="text-xs font-mono font-bold text-emerald-400">
+                {lead.score >= 85 ? 'Tier A Priority' : lead.score >= 75 ? 'Tier B Target' : 'Tier C Review'}
+              </span>
             </div>
             <p className="mt-2.5 text-xs text-slate-300 leading-relaxed">
               Match score was computed based on exact persona alignment ({lead.title}), enterprise growth velocity, and active intent triggers detected within the last 72 hours.
@@ -138,23 +168,72 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
             </div>
           </div>
 
-          {/* SDR & Agent Notes */}
+          {/* SDR & Agent Notes with Editing */}
           <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3.5">
-            <span className="text-xs font-semibold text-slate-400 block">Agent Intelligence Notes</span>
-            <p className="mt-1 text-xs text-slate-300 italic">{lead.notes}</p>
+            <div className="flex items-center justify-between pb-1">
+              <span className="text-xs font-semibold text-slate-400">Agent Intelligence Notes</span>
+              {!editingNotes ? (
+                <button
+                  onClick={() => setEditingNotes(true)}
+                  className="text-[11px] text-indigo-400 hover:text-indigo-300 font-medium"
+                >
+                  Edit Note
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setEditingNotes(false)}
+                    className="text-[11px] text-slate-500 hover:text-slate-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveNotes}
+                    className="text-[11px] text-emerald-400 hover:text-emerald-300 font-bold"
+                  >
+                    Save
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {!editingNotes ? (
+              <p className="mt-1 text-xs text-slate-300 italic">{lead.notes}</p>
+            ) : (
+              <textarea
+                value={notesValue}
+                onChange={(e) => setNotesValue(e.target.value)}
+                className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-900 p-2 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none"
+                rows={3}
+              />
+            )}
+
+            {savedNotesToast && (
+              <p className="mt-1 text-[11px] text-emerald-400 flex items-center gap-1 font-medium">
+                <CheckCircle2 className="h-3 w-3" /> Note updated successfully
+              </p>
+            )}
           </div>
         </div>
 
-        {/* Modal Footer */}
-        <div className="border-t border-slate-800 bg-slate-950/80 p-4 flex items-center justify-between">
+        {/* Modal Footer with Interactive Stage Selector */}
+        <div className="border-t border-slate-800 bg-slate-950/80 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400">Current Stage:</span>
-            <span className="rounded-md border border-slate-700 bg-slate-800 px-2 py-0.5 text-xs font-bold text-slate-200">
-              {lead.status}
-            </span>
+            <span className="text-xs text-slate-400">Pipeline Stage:</span>
+            <select
+              value={lead.status}
+              onChange={(e) => onUpdateStatus?.(lead.id, e.target.value as LeadStatus)}
+              className="rounded-lg border border-indigo-500/40 bg-slate-900 px-3 py-1.5 text-xs font-bold text-indigo-300 focus:border-indigo-400 focus:outline-none cursor-pointer"
+            >
+              {ALL_STAGES.map((st) => (
+                <option key={st} value={st}>
+                  {st}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 self-end sm:self-auto">
             <button
               onClick={onClose}
               className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white"

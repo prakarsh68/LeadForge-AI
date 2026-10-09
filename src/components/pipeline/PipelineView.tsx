@@ -9,21 +9,22 @@ import {
   X,
 } from 'lucide-react';
 
-
 interface PipelineViewProps {
   leads: Lead[];
   onSelectLead: (lead: Lead) => void;
   onUpdateStatus: (leadId: string, newStatus: LeadStatus) => void;
-  onAddLead?: (newLead: Partial<Lead>) => void;
+  onAddLead?: (newLead: Lead) => void;
 }
 
 export const PipelineView: React.FC<PipelineViewProps> = ({
   leads,
   onSelectLead,
   onUpdateStatus,
+  onAddLead,
 }) => {
   const [filterQuery, setFilterQuery] = useState('');
   const [showAddDealModal, setShowAddDealModal] = useState(false);
+  const [dealError, setDealError] = useState<string | null>(null);
   const [newDealForm, setNewDealForm] = useState({
     name: '',
     company: '',
@@ -58,6 +59,49 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
       l.name.toLowerCase().includes(filterQuery.toLowerCase()) ||
       l.company.toLowerCase().includes(filterQuery.toLowerCase())
   );
+
+  const handleCreateDeal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDealForm.name.trim() || !newDealForm.company.trim()) {
+      setDealError('Prospect Name and Company are required.');
+      return;
+    }
+
+    const cleanCompany = newDealForm.company.trim();
+    const cleanDomain = `${cleanCompany.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
+
+    const newLeadRecord: Lead = {
+      id: `lead-${Date.now()}`,
+      name: newDealForm.name.trim(),
+      title: newDealForm.title.trim() || 'Director of Operations',
+      company: cleanCompany,
+      companyDomain: cleanDomain,
+      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+      email: `contact@${cleanDomain}`,
+      linkedin: 'https://linkedin.com',
+      location: 'United States',
+      industry: 'Enterprise Software & Cloud',
+      companySize: '100 - 250',
+      score: 85,
+      tier: 'high',
+      status: newDealForm.stage,
+      dealValue: parseInt(newDealForm.dealValue) || 40000,
+      triggers: ['Manually added to pipeline'],
+      notes: 'High intent prospect added via pipeline quick action.',
+      lastActive: 'Just now',
+    };
+
+    onAddLead?.(newLeadRecord);
+    setShowAddDealModal(false);
+    setDealError(null);
+    setNewDealForm({
+      name: '',
+      company: '',
+      title: '',
+      dealValue: '45000',
+      stage: 'New',
+    });
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -119,7 +163,6 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
         </div>
       </div>
 
-
       {/* Kanban Board Container (Horizontally Scrollable) */}
       <div className="overflow-x-auto pb-4">
         <div className="flex gap-4 min-w-[1100px]">
@@ -149,7 +192,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                 {/* Cards List */}
                 <div className="flex-1 space-y-3 overflow-y-auto max-h-[650px] pr-1">
                   {colLeads.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-slate-800 p-6 text-center text-xs text-slate-400">
+                    <div className="rounded-xl border border-dashed border-slate-800 p-6 text-center text-xs text-slate-500">
                       No active prospects in this stage
                     </div>
                   ) : (
@@ -188,11 +231,18 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
               </button>
             </div>
 
-            <div className="mt-4 space-y-3 text-xs">
+            {dealError && (
+              <div className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 p-2 text-xs font-medium text-rose-300">
+                {dealError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateDeal} className="mt-4 space-y-3 text-xs">
               <div>
-                <label className="block text-slate-300 font-medium mb-1">Prospect Name</label>
+                <label className="block text-slate-300 font-medium mb-1">Prospect Name *</label>
                 <input
                   type="text"
+                  required
                   placeholder="e.g. Rachel Adams"
                   value={newDealForm.name}
                   onChange={(e) => setNewDealForm({ ...newDealForm, name: e.target.value })}
@@ -201,9 +251,10 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-slate-300 font-medium mb-1">Company</label>
+                <label className="block text-slate-300 font-medium mb-1">Company *</label>
                 <input
                   type="text"
+                  required
                   placeholder="e.g. Acme Cloud Corp"
                   value={newDealForm.company}
                   onChange={(e) =>
@@ -252,55 +303,23 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                   ))}
                 </select>
               </div>
-            </div>
 
-            <div className="mt-5 pt-3 border-t border-slate-800 flex justify-end gap-2">
-              <button
-                onClick={() => setShowAddDealModal(false)}
-                className="rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-1.5 text-xs text-slate-300 hover:text-white"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  if (newDealForm.name && newDealForm.company) {
-                    // Create simulated lead
-                    const dummyId = `lead-${Date.now()}`;
-                    leads.push({
-                      id: dummyId,
-                      name: newDealForm.name,
-                      title: newDealForm.title || 'Director of Operations',
-                      company: newDealForm.company,
-                      companyDomain: `${newDealForm.company.toLowerCase().replace(/\s+/g, '')}.com`,
-                      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-                      email: `contact@${newDealForm.company.toLowerCase().replace(/\s+/g, '')}.com`,
-                      linkedin: 'https://linkedin.com',
-                      location: 'United States',
-                      industry: 'Enterprise Software & Cloud',
-                      companySize: '100 - 250',
-                      score: 85,
-                      tier: 'high',
-                      status: newDealForm.stage,
-                      dealValue: parseInt(newDealForm.dealValue) || 40000,
-                      triggers: ['Manually added to pipeline'],
-                      notes: 'High intent prospect added via pipeline quick action.',
-                      lastActive: 'Just now',
-                    });
-                    setShowAddDealModal(false);
-                    setNewDealForm({
-                      name: '',
-                      company: '',
-                      title: '',
-                      dealValue: '45000',
-                      stage: 'New',
-                    });
-                  }
-                }}
-                className="rounded-xl bg-indigo-600 px-4 py-1.5 text-xs font-bold text-white shadow hover:bg-indigo-500"
-              >
-                Save Opportunity
-              </button>
-            </div>
+              <div className="mt-5 pt-3 border-t border-slate-800 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddDealModal(false)}
+                  className="rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-1.5 text-xs text-slate-300 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-indigo-600 px-4 py-1.5 text-xs font-bold text-white shadow hover:bg-indigo-500"
+                >
+                  Save Opportunity
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

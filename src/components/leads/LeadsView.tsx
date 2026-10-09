@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+
 import type { Lead, LeadStatus } from '../../types';
 import {
   Search,
@@ -8,19 +9,39 @@ import {
   Square,
   CheckCircle2,
   Eye,
+  Download,
+  Plus,
+  X,
+  RotateCcw,
 } from 'lucide-react';
 
 interface LeadsViewProps {
   leads: Lead[];
   onSelectLead: (lead: Lead) => void;
   onUpdateStatus?: (leadId: string, status: LeadStatus) => void;
+  onAddLead?: (lead: Lead) => void;
+  searchQuery?: string;
+  onSearchChange?: (q: string) => void;
 }
+
+const ALL_STATUSES: LeadStatus[] = [
+  'New',
+  'Contacted',
+  'Qualified',
+  'Proposal',
+  'Won',
+  'Disqualified',
+];
 
 export const LeadsView: React.FC<LeadsViewProps> = ({
   leads,
   onSelectLead,
+  onUpdateStatus,
+  onAddLead,
+  searchQuery: externalSearchQuery = '',
+  onSearchChange,
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [internalSearchTerm, setInternalSearchTerm] = useState(externalSearchQuery);
   const [selectedTier, setSelectedTier] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedIndustry, setSelectedIndustry] = useState<string>('all');
@@ -28,21 +49,53 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
   const [sortAsc, setSortAsc] = useState(false);
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
   const [batchActionNotice, setBatchActionNotice] = useState<string | null>(null);
+  const [showAddLeadModal, setShowAddLeadModal] = useState(false);
 
+  // New Lead Form State
+  const [newLeadForm, setNewLeadForm] = useState({
+    name: '',
+    title: '',
+    company: '',
+    companyDomain: '',
+    email: '',
+    industry: 'Enterprise Software & Cloud',
+    companySize: '100 - 250',
+    dealValue: '48000',
+    score: '88',
+    status: 'New' as LeadStatus,
+    triggers: 'High website visitor tracking activity',
+    notes: 'Discovered via outbound signals.',
+  });
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const [prevExternalSearch, setPrevExternalSearch] = useState(externalSearchQuery);
+  if (externalSearchQuery !== prevExternalSearch) {
+    setPrevExternalSearch(externalSearchQuery);
+    setInternalSearchTerm(externalSearchQuery);
+  }
+
+
+  const handleSearchChange = (term: string) => {
+    setInternalSearchTerm(term);
+    onSearchChange?.(term);
+  };
 
   // Unique industries for filter
   const industries = useMemo(() => {
-    return Array.from(new Set(leads.map((l) => l.industry)));
+    return Array.from(new Set(leads.map((l) => l.industry))).filter(Boolean);
   }, [leads]);
 
   // Filter & Sort Logic
   const filteredLeads = useMemo(() => {
+    const term = internalSearchTerm.trim().toLowerCase();
     return leads
       .filter((lead) => {
         const matchesSearch =
-          lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          lead.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          lead.title.toLowerCase().includes(searchTerm.toLowerCase());
+          !term ||
+          lead.name.toLowerCase().includes(term) ||
+          lead.company.toLowerCase().includes(term) ||
+          lead.title.toLowerCase().includes(term) ||
+          lead.companyDomain.toLowerCase().includes(term);
 
         const matchesTier =
           selectedTier === 'all' ||
@@ -66,10 +119,10 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
 
         return sortAsc ? -comp : comp;
       });
-  }, [leads, searchTerm, selectedTier, selectedStatus, selectedIndustry, sortBy, sortAsc]);
+  }, [leads, internalSearchTerm, selectedTier, selectedStatus, selectedIndustry, sortBy, sortAsc]);
 
   const handleSelectAll = () => {
-    if (selectedLeadIds.length === filteredLeads.length) {
+    if (selectedLeadIds.length === filteredLeads.length && filteredLeads.length > 0) {
       setSelectedLeadIds([]);
     } else {
       setSelectedLeadIds(filteredLeads.map((l) => l.id));
@@ -85,9 +138,112 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
   };
 
   const handleBatchOutreach = () => {
-    setBatchActionNotice(`Enqueued AI outreach sequences for ${selectedLeadIds.length} prospects!`);
-    setTimeout(() => setBatchActionNotice(null), 3000);
+    if (selectedLeadIds.length === 0) return;
+    // Mark selected leads as 'Contacted'
+    selectedLeadIds.forEach((id) => {
+      onUpdateStatus?.(id, 'Contacted');
+    });
+    setBatchActionNotice(`Updated stage to 'Contacted' for ${selectedLeadIds.length} prospects!`);
+    setTimeout(() => setBatchActionNotice(null), 3500);
     setSelectedLeadIds([]);
+  };
+
+  // Functional CSV Export
+  const handleExportCsv = () => {
+    const headers = [
+      'Name',
+      'Title',
+      'Company',
+      'Domain',
+      'Email',
+      'Industry',
+      'Headcount',
+      'Fit Score',
+      'Stage',
+      'Deal Value ($)',
+      'Triggers',
+    ];
+
+    const rows = filteredLeads.map((l) => [
+      `"${l.name.replace(/"/g, '""')}"`,
+      `"${l.title.replace(/"/g, '""')}"`,
+      `"${l.company.replace(/"/g, '""')}"`,
+      `"${l.companyDomain}"`,
+      `"${l.email}"`,
+      `"${l.industry}"`,
+      `"${l.companySize}"`,
+      l.score,
+      `"${l.status}"`,
+      l.dealValue,
+      `"${l.triggers.join('; ').replace(/"/g, '""')}"`,
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `leadforge_leads_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleCreateLead = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newLeadForm.name.trim() || !newLeadForm.company.trim()) {
+      setFormError('Prospect Name and Company are required.');
+      return;
+    }
+
+    const cleanDomain =
+      newLeadForm.companyDomain.trim() ||
+      `${newLeadForm.company.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
+
+    const cleanEmail =
+      newLeadForm.email.trim() ||
+      `${newLeadForm.name.toLowerCase().split(' ')[0]}@${cleanDomain}`;
+
+    const scoreNum = Math.min(100, Math.max(0, parseInt(newLeadForm.score) || 80));
+
+    const newLead: Lead = {
+      id: `lead-${Date.now()}`,
+      name: newLeadForm.name.trim(),
+      title: newLeadForm.title.trim() || 'Decision Maker',
+      company: newLeadForm.company.trim(),
+      companyDomain: cleanDomain,
+      avatar: `https://images.unsplash.com/photo-${1535713875002 + (leads.length % 5)}?w=150&auto=format&fit=crop&q=80`,
+      email: cleanEmail,
+      linkedin: `https://linkedin.com/in/${newLeadForm.name.toLowerCase().replace(/\s+/g, '-')}`,
+      location: 'United States',
+      industry: newLeadForm.industry,
+      companySize: newLeadForm.companySize,
+      score: scoreNum,
+      tier: scoreNum >= 85 ? 'high' : scoreNum >= 75 ? 'medium' : 'low',
+      status: newLeadForm.status,
+      dealValue: parseInt(newLeadForm.dealValue) || 45000,
+      triggers: newLeadForm.triggers.split(',').map((t) => t.trim()).filter(Boolean),
+      notes: newLeadForm.notes.trim() || 'Added via manual repository intake.',
+      lastActive: 'Just now',
+    };
+
+    onAddLead?.(newLead);
+    setShowAddLeadModal(false);
+    setFormError(null);
+    setNewLeadForm({
+      name: '',
+      title: '',
+      company: '',
+      companyDomain: '',
+      email: '',
+      industry: 'Enterprise Software & Cloud',
+      companySize: '100 - 250',
+      dealValue: '48000',
+      score: '88',
+      status: 'New',
+      triggers: 'High website visitor tracking activity',
+      notes: 'Discovered via outbound signals.',
+    });
   };
 
   const getScoreBadgeColor = (score: number) => {
@@ -123,13 +279,21 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
           <input
             type="text"
             placeholder="Search by prospect name, title, or company..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-xl border border-slate-800 bg-slate-950/80 pl-10 pr-4 py-2 text-xs text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            value={internalSearchTerm}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="w-full rounded-xl border border-slate-800 bg-slate-950/80 pl-10 pr-8 py-2 text-xs text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
+          {internalSearchTerm && (
+            <button
+              onClick={() => handleSearchChange('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
 
-        {/* Filters */}
+        {/* Filters and Action Buttons */}
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Fit Tier Filter */}
           <select
@@ -150,11 +314,11 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
             className="rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs text-slate-300 focus:border-indigo-500 focus:outline-none"
           >
             <option value="all">All Statuses</option>
-            <option value="New">New Discovered</option>
-            <option value="Contacted">Outreach Sent</option>
-            <option value="Qualified">ICP Qualified</option>
-            <option value="Proposal">Proposal</option>
-            <option value="Won">Closed Won</option>
+            {ALL_STATUSES.map((st) => (
+              <option key={st} value={st}>
+                {st}
+              </option>
+            ))}
           </select>
 
           {/* Industry Filter */}
@@ -182,9 +346,30 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
             className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 transition-colors"
           >
             <ArrowUpDown className="h-3.5 w-3.5 text-indigo-400" />
-            <span>Sort: {sortBy === 'score' ? 'Fit Score' : sortBy === 'value' ? 'Deal Size' : 'Name'} {sortAsc ? '↑' : '↓'}</span>
+            <span>
+              Sort: {sortBy === 'score' ? 'Fit Score' : sortBy === 'value' ? 'Deal Size' : 'Name'}{' '}
+              {sortAsc ? '↑' : '↓'}
+            </span>
           </button>
 
+          {/* Export CSV Button */}
+          <button
+            onClick={handleExportCsv}
+            title="Export filtered leads to CSV"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+          >
+            <Download className="h-3.5 w-3.5 text-slate-400" />
+            <span className="hidden md:inline">Export</span>
+          </button>
+
+          {/* Add Lead Button */}
+          <button
+            onClick={() => setShowAddLeadModal(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 px-3.5 py-2 text-xs font-bold text-white shadow-md shadow-indigo-600/30 transition-all active:scale-95"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Add Lead</span>
+          </button>
         </div>
       </div>
 
@@ -202,7 +387,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
               className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white shadow hover:bg-indigo-500 transition-colors"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              Trigger AI Multichannel Sequence
+              Mark as Contacted & Outreach
             </button>
             <button
               onClick={() => setSelectedLeadIds([])}
@@ -243,7 +428,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                 <th className="py-3.5 px-4">Lead Persona</th>
                 <th className="py-3.5 px-4">Company & Headcount</th>
                 <th className="py-3.5 px-4">AI Fit Score</th>
-                <th className="py-3.5 px-4">Status</th>
+                <th className="py-3.5 px-4">Pipeline Stage</th>
                 <th className="py-3.5 px-4">Buying Triggers</th>
                 <th className="py-3.5 px-4">Deal Value</th>
                 <th className="py-3.5 px-4 text-right">Actions</th>
@@ -254,11 +439,25 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
             <tbody className="divide-y divide-slate-800/60">
               {filteredLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
-                    <p className="text-sm">No leads matched your search or filter criteria.</p>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Try resetting filters or adjusting your ICP score threshold.
+                  <td colSpan={8} className="py-14 text-center text-slate-400">
+                    <p className="text-sm font-semibold text-slate-300">
+                      No leads matched your search or filter criteria.
                     </p>
+                    <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                      Try clearing your search query or resetting filters to view all discovered accounts.
+                    </p>
+                    <button
+                      onClick={() => {
+                        handleSearchChange('');
+                        setSelectedTier('all');
+                        setSelectedStatus('all');
+                        setSelectedIndustry('all');
+                      }}
+                      className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition-colors"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5 text-indigo-400" />
+                      Reset All Filters
+                    </button>
                   </td>
                 </tr>
               ) : (
@@ -331,16 +530,23 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                         </div>
                       </td>
 
-                      {/* Status */}
+                      {/* Quick Interactive Pipeline Stage Selector */}
                       <td className="py-3.5 px-4">
-                        <span
-                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${getStatusBadge(
+                        <select
+                          value={lead.status}
+                          onChange={(e) =>
+                            onUpdateStatus?.(lead.id, e.target.value as LeadStatus)
+                          }
+                          className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold bg-slate-900 focus:outline-none cursor-pointer ${getStatusBadge(
                             lead.status
                           )}`}
                         >
-                          <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                          {lead.status}
-                        </span>
+                          {ALL_STATUSES.map((st) => (
+                            <option key={st} value={st} className="bg-slate-900 text-slate-200">
+                              {st}
+                            </option>
+                          ))}
+                        </select>
                       </td>
 
                       {/* Buying Triggers */}
@@ -399,11 +605,165 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
 
           <div className="flex items-center gap-3">
             <span className="text-[11px] text-slate-400">
-              Updated continuously via Autonomous Scraping Agents
+              Changes persist automatically to browser storage
             </span>
           </div>
         </div>
       </div>
+
+      {/* Modal: Add New Lead */}
+      {showAddLeadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Plus className="h-4 w-4 text-indigo-400" />
+                Add Prospect to Repository
+              </h3>
+              <button
+                onClick={() => setShowAddLeadModal(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {formError && (
+              <div className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 p-2.5 text-xs font-medium text-rose-300">
+                {formError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateLead} className="mt-4 space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Maya Lin"
+                    value={newLeadForm.name}
+                    onChange={(e) => setNewLeadForm({ ...newLeadForm, name: e.target.value })}
+                    className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-white placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Company Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. SynthWave Dynamics"
+                    value={newLeadForm.company}
+                    onChange={(e) =>
+                      setNewLeadForm({ ...newLeadForm, company: e.target.value })
+                    }
+                    className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-white placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Job Title</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. VP Sales Engineering"
+                    value={newLeadForm.title}
+                    onChange={(e) => setNewLeadForm({ ...newLeadForm, title: e.target.value })}
+                    className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-white placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Target Industry</label>
+                  <select
+                    value={newLeadForm.industry}
+                    onChange={(e) =>
+                      setNewLeadForm({ ...newLeadForm, industry: e.target.value })
+                    }
+                    className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  >
+                    <option value="Enterprise Software & Cloud">Enterprise Software & Cloud</option>
+                    <option value="AI & Data Analytics">AI & Data Analytics</option>
+                    <option value="FinTech & Payments">FinTech & Payments</option>
+                    <option value="Cybersecurity">Cybersecurity</option>
+                    <option value="HealthTech & Bio">HealthTech & Bio</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Fit Score (0-100)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={newLeadForm.score}
+                    onChange={(e) => setNewLeadForm({ ...newLeadForm, score: e.target.value })}
+                    className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-white font-mono focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Deal Value ($)</label>
+                  <input
+                    type="number"
+                    value={newLeadForm.dealValue}
+                    onChange={(e) =>
+                      setNewLeadForm({ ...newLeadForm, dealValue: e.target.value })
+                    }
+                    className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-white font-mono focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Initial Stage</label>
+                  <select
+                    value={newLeadForm.status}
+                    onChange={(e) =>
+                      setNewLeadForm({ ...newLeadForm, status: e.target.value as LeadStatus })
+                    }
+                    className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  >
+                    {ALL_STATUSES.map((st) => (
+                      <option key={st} value={st}>
+                        {st}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-medium mb-1">Buying Triggers (comma-separated)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Raised Series A, Hiring 5 SDRs"
+                  value={newLeadForm.triggers}
+                  onChange={(e) =>
+                    setNewLeadForm({ ...newLeadForm, triggers: e.target.value })
+                  }
+                  className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-white placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowAddLeadModal(false)}
+                  className="rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-1.5 text-xs text-slate-300 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-indigo-600 px-4 py-1.5 text-xs font-bold text-white shadow hover:bg-indigo-500 transition-colors"
+                >
+                  Save Lead
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

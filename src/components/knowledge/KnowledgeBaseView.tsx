@@ -16,9 +16,19 @@ import {
   X,
 } from 'lucide-react';
 
+interface KnowledgeBaseViewProps {
+  documents?: KnowledgeDocument[];
+  onAddDocument?: (doc: KnowledgeDocument) => void;
+  onDeleteDocument?: (id: string) => void;
+  onUpdateDocument?: (doc: KnowledgeDocument) => void;
+}
 
-export const KnowledgeBaseView: React.FC = () => {
-  const [documents, setDocuments] = useState<KnowledgeDocument[]>(mockKnowledgeDocuments);
+export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
+  documents = mockKnowledgeDocuments,
+  onAddDocument,
+  onDeleteDocument,
+  onUpdateDocument,
+}) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -49,15 +59,16 @@ export const KnowledgeBaseView: React.FC = () => {
   const handleReindex = (id: string) => {
     setReindexingId(id);
     setTimeout(() => {
-      setDocuments((prev) =>
-        prev.map((d) => (d.id === id ? { ...d, status: 'Indexed' as const } : d))
-      );
+      const doc = documents.find((d) => d.id === id);
+      if (doc && onUpdateDocument) {
+        onUpdateDocument({ ...doc, status: 'Indexed' });
+      }
       setReindexingId(null);
-    }, 1500);
+    }, 1200);
   };
 
   const handleDelete = (id: string) => {
-    setDocuments((prev) => prev.filter((d) => d.id !== id));
+    onDeleteDocument?.(id);
   };
 
   const handleAddDocument = (e: React.FormEvent) => {
@@ -72,10 +83,12 @@ export const KnowledgeBaseView: React.FC = () => {
       sizeOrTokens: '1.2 MB • 9,400 tokens',
       status: 'Indexed',
       uploadedAt: 'Just now',
-      summary: newSummary.trim() || 'Uploaded collateral ingested into autonomous agent vector memory.',
+      summary:
+        newSummary.trim() ||
+        'Uploaded collateral ingested into autonomous agent vector memory.',
     };
 
-    setDocuments([newDoc, ...documents]);
+    onAddDocument?.(newDoc);
     setNewTitle('');
     setNewSummary('');
     setShowAddModal(false);
@@ -153,7 +166,7 @@ export const KnowledgeBaseView: React.FC = () => {
           </p>
           <div className="mt-3 flex items-center gap-2">
             <span className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white shadow group-hover:bg-indigo-500">
-              Browse Files or Add URL
+              Browse Files or Add Asset
             </span>
           </div>
         </div>
@@ -194,8 +207,8 @@ export const KnowledgeBaseView: React.FC = () => {
       {/* Document List */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {filteredDocs.length === 0 ? (
-          <div className="col-span-2 rounded-2xl border border-slate-800 p-12 text-center text-xs text-slate-400">
-            No documents found matching criteria.
+          <div className="col-span-2 rounded-2xl border border-slate-800 p-12 text-center text-xs text-slate-500">
+            No documents found matching "{searchQuery}".
           </div>
         ) : (
           filteredDocs.map((doc) => {
@@ -297,7 +310,7 @@ export const KnowledgeBaseView: React.FC = () => {
             <form onSubmit={handleAddDocument} className="mt-4 space-y-3.5 text-xs">
               <div>
                 <label className="block text-slate-300 font-medium mb-1">
-                  Document / Asset Title
+                  Document / Asset Title *
                 </label>
                 <input
                   type="text"

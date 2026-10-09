@@ -17,10 +17,19 @@ import {
 } from 'lucide-react';
 
 
-export const IcpSetupView: React.FC = () => {
-  const [profile, setProfile] = useState<IcpProfile>(defaultIcpProfile);
+interface IcpSetupViewProps {
+  initialProfile?: IcpProfile;
+  onSaveProfile?: (profile: IcpProfile) => void;
+}
+
+export const IcpSetupView: React.FC<IcpSetupViewProps> = ({
+  initialProfile = defaultIcpProfile,
+  onSaveProfile,
+}) => {
+  const [profile, setProfile] = useState<IcpProfile>(initialProfile);
   const [activeTab, setActiveTab] = useState<'profile' | 'triggers' | 'scoring'>('profile');
   const [saveSuccess, setSaveSuccess] = useState(false);
+
 
   // New tag states
   const [newIndustry, setNewIndustry] = useState('');
@@ -68,34 +77,39 @@ export const IcpSetupView: React.FC = () => {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    onSaveProfile?.(profile);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3500);
   };
 
   const handleApplyPreset = (presetName: string) => {
+    let preset: IcpProfile;
     if (presetName === 'fintech') {
-      setProfile({
+      preset = {
         ...defaultIcpProfile,
         name: 'Enterprise FinTech & Payments ICP',
         description: 'Global financial infrastructure, neo-banks, and compliance-first payments platforms.',
         targetIndustries: ['FinTech & Payments', 'Banking Infrastructure', 'RegTech & Compliance'],
         minScoreThreshold: 82,
-      });
+      };
     } else if (presetName === 'ai') {
-      setProfile({
+      preset = {
         ...defaultIcpProfile,
         name: 'High-Velocity AI & ML Startups',
         description: 'Venture-backed Series Seed to Series B AI infrastructure and application companies.',
         targetIndustries: ['AI & Data Analytics', 'Developer Tooling', 'Enterprise Software & Cloud'],
         companySizeRanges: ['20 - 50', '50 - 100', '100 - 250'],
         minScoreThreshold: 75,
-      });
+      };
     } else {
-      setProfile(defaultIcpProfile);
+      preset = defaultIcpProfile;
     }
+    setProfile(preset);
+    onSaveProfile?.(preset);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 2000);
   };
+
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">

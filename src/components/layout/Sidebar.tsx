@@ -11,14 +11,17 @@ import {
   X,
   Flame,
 } from 'lucide-react';
-import type { ViewType } from '../../types';
-
+import type { ViewType, IcpProfile } from '../../types';
 
 interface SidebarProps {
   currentView: ViewType;
   onSelectView: (view: ViewType) => void;
   isOpenMobile: boolean;
   onCloseMobile: () => void;
+  icpProfile?: IcpProfile;
+  leadsCount?: number;
+  pipelineTotal?: number;
+  docsCount?: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -26,13 +29,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectView,
   isOpenMobile,
   onCloseMobile,
+  icpProfile,
+  leadsCount = 12,
+  pipelineTotal = 645000,
+  docsCount = 6,
 }) => {
+  const formattedPipeline =
+    pipelineTotal >= 1000000
+      ? `$${(pipelineTotal / 1000000).toFixed(1)}M`
+      : `$${Math.round(pipelineTotal / 1000)}k`;
+
   const navItems: { id: ViewType; label: string; icon: React.ElementType; badge?: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'icp', label: 'ICP Setup', icon: Target },
-    { id: 'leads', label: 'Leads', icon: Users, badge: '1.4k' },
-    { id: 'pipeline', label: 'Pipeline', icon: Kanban, badge: '$645k' },
-    { id: 'knowledge', label: 'Knowledge Base', icon: BookOpen, badge: '6 docs' },
+    { id: 'leads', label: 'Leads', icon: Users, badge: `${leadsCount}` },
+    { id: 'pipeline', label: 'Pipeline', icon: Kanban, badge: formattedPipeline },
+    { id: 'knowledge', label: 'Knowledge Base', icon: BookOpen, badge: `${docsCount} docs` },
   ];
 
   return (
@@ -139,7 +151,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           {/* Active ICP Preset Card */}
-          <div className="rounded-xl border border-indigo-500/20 bg-gradient-to-br from-indigo-950/40 via-slate-900/60 to-slate-900/90 p-3.5 shadow-sm">
+          <div
+            onClick={() => {
+              onSelectView('icp');
+              onCloseMobile();
+            }}
+            className="cursor-pointer rounded-xl border border-indigo-500/20 bg-gradient-to-br from-indigo-950/40 via-slate-900/60 to-slate-900/90 p-3.5 shadow-sm hover:border-indigo-500/40 transition-colors"
+          >
             <div className="flex items-center justify-between pb-2">
               <span className="flex items-center gap-1.5 text-[11px] font-semibold text-indigo-300">
                 <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
@@ -148,15 +166,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
             </div>
             <p className="text-xs font-medium text-slate-200 truncate">
-              B2B SaaS Growth & Enterprise
+              {icpProfile?.name || 'B2B SaaS Growth & Enterprise'}
             </p>
             <div className="mt-2.5 flex items-center justify-between text-[11px] text-slate-400">
               <span>Fit Threshold:</span>
-              <span className="font-semibold text-emerald-400">78+ Score</span>
+              <span className="font-semibold text-emerald-400">
+                {icpProfile?.minScoreThreshold || 78}+ Score
+              </span>
             </div>
             <div className="mt-1 flex items-center justify-between text-[11px] text-slate-400">
               <span>Audience Pool:</span>
-              <span className="font-semibold text-slate-200">4,200 Accounts</span>
+              <span className="font-semibold text-slate-200">~4,200 Accounts</span>
             </div>
           </div>
 

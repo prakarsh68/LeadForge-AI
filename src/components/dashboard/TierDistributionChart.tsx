@@ -1,9 +1,27 @@
 import React from 'react';
-import { tierDistribution } from '../../data/mockData';
 import { PieChart, Zap } from 'lucide-react';
+import type { Lead } from '../../types';
 
+interface TierDistributionChartProps {
+  leads?: Lead[];
+}
 
-export const TierDistributionChart: React.FC = () => {
+export const TierDistributionChart: React.FC<TierDistributionChartProps> = ({ leads = [] }) => {
+  const total = leads.length;
+  const tierACount = leads.filter((l) => l.score >= 85).length;
+  const tierBCount = leads.filter((l) => l.score >= 75 && l.score < 85).length;
+  const tierCCount = leads.filter((l) => l.score < 75).length;
+
+  const tierAPct = total > 0 ? Math.round((tierACount / total) * 100) : 0;
+  const tierBPct = total > 0 ? Math.round((tierBCount / total) * 100) : 0;
+  const tierCPct = total > 0 ? Math.max(0, 100 - tierAPct - tierBPct) : 0;
+
+  const distribution = [
+    { label: 'Tier A (85-100 Match)', count: tierACount, percentage: tierAPct, color: 'bg-emerald-500' },
+    { label: 'Tier B (75-84 Match)', count: tierBCount, percentage: tierBPct, color: 'bg-indigo-500' },
+    { label: 'Tier C (<75 Match)', count: tierCCount, percentage: tierCPct, color: 'bg-amber-500' },
+  ];
+
   return (
     <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5 backdrop-blur-sm flex flex-col justify-between">
       <div>
@@ -13,7 +31,7 @@ export const TierDistributionChart: React.FC = () => {
               ICP Fit Distribution
             </h3>
             <span className="rounded-md bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-500/20">
-              860 Evaluated
+              {total} Evaluated
             </span>
           </div>
           <PieChart className="h-4 w-4 text-slate-400" />
@@ -25,7 +43,7 @@ export const TierDistributionChart: React.FC = () => {
 
         {/* Stacked Percentage Bar */}
         <div className="mt-5 h-4 w-full rounded-full overflow-hidden flex bg-slate-800 p-0.5 gap-0.5">
-          {tierDistribution.map((tier) => (
+          {distribution.map((tier) => (
             <div
               key={tier.label}
               className={`${tier.color} h-full rounded-sm transition-all hover:opacity-90`}
@@ -37,7 +55,7 @@ export const TierDistributionChart: React.FC = () => {
 
         {/* Breakdown List */}
         <div className="mt-5 space-y-3">
-          {tierDistribution.map((tier) => (
+          {distribution.map((tier) => (
             <div
               key={tier.label}
               className="flex items-center justify-between rounded-xl border border-slate-800/60 bg-slate-950/40 p-2.5 text-xs"
