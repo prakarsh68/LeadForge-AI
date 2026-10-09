@@ -7,6 +7,8 @@ import type {
   OpportunityDTO,
   KnowledgeDocumentEntity,
   KnowledgeDocumentDTO,
+  KnowledgeChunkEntity,
+  KnowledgeChunkDTO,
   ActivityEntity,
   ActivityDTO,
   DiscoveryJobEntity,
@@ -128,8 +130,32 @@ export function knowledgeDocEntityToDto(entity: KnowledgeDocumentEntity): Knowle
     status: entity.status,
     uploadedAt: entity.uploaded_at,
     summary: entity.summary || '',
+    filePath: entity.file_path || null,
+    fileSize: entity.file_size || 0,
+    mimeType: entity.mime_type || null,
+    contentHash: entity.content_hash || null,
+    processingStatus: entity.processing_status || (entity.status === 'Indexed' ? 'indexed' : 'uploaded'),
+    errorMessage: entity.error_message || null,
+    chunkCount: entity.chunk_count || 0,
+    indexedAt: entity.indexed_at || null,
+    embeddingModel: entity.embedding_model || null,
     createdAt: entity.created_at,
     updatedAt: entity.updated_at,
+  };
+}
+
+export function knowledgeChunkEntityToDto(entity: KnowledgeChunkEntity): KnowledgeChunkDTO {
+  return {
+    id: entity.id,
+    documentId: entity.document_id,
+    chunkIndex: entity.chunk_index,
+    content: entity.content,
+    pageNumber: entity.page_number ?? null,
+    sectionTitle: entity.section_title ?? null,
+    charCount: entity.char_count,
+    hasEmbedding: Boolean(entity.embedding),
+    embeddingModel: entity.embedding_model ?? null,
+    createdAt: entity.created_at,
   };
 }
 

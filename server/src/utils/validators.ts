@@ -19,7 +19,7 @@ export const ALLOWED_DOC_CATEGORIES = [
   'Compliance',
 ] as const;
 
-export const ALLOWED_DOC_TYPES = ['pdf', 'doc', 'url', 'notion'] as const;
+export const ALLOWED_DOC_TYPES = ['pdf', 'doc', 'docx', 'txt', 'md', 'url', 'notion'] as const;
 
 export const ALLOWED_ACTIVITY_TYPES = ['discovery', 'score', 'outreach', 'stage_change'] as const;
 

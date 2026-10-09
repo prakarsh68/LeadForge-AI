@@ -246,15 +246,90 @@ export interface ApiResponse<T = any> {
   error?: string;
 }
 
+export type KnowledgeProcessingStatus =
+  | 'uploaded'
+  | 'extracting'
+  | 'extracted'
+  | 'chunking'
+  | 'chunked'
+  | 'indexing'
+  | 'indexed'
+  | 'failed';
+
 export interface KnowledgeDocument {
   id: string;
   title: string;
   category: 'Product Specs' | 'Battlecards' | 'Case Studies' | 'Pricing' | 'Compliance';
-  type: 'pdf' | 'doc' | 'url' | 'notion';
+  type: 'pdf' | 'doc' | 'docx' | 'txt' | 'md' | 'url' | 'notion';
   sizeOrTokens: string;
   status: 'Indexed' | 'Syncing' | 'Ready';
   uploadedAt: string;
   summary: string;
+  filePath?: string | null;
+  fileSize?: number;
+  mimeType?: string | null;
+  contentHash?: string | null;
+  processingStatus?: KnowledgeProcessingStatus;
+  errorMessage?: string | null;
+  chunkCount?: number;
+  indexedAt?: string | null;
+  embeddingModel?: string | null;
+}
+
+export interface KnowledgeChunk {
+  id: string;
+  documentId: string;
+  chunkIndex: number;
+  content: string;
+  pageNumber?: number | null;
+  sectionTitle?: string | null;
+  charCount: number;
+  hasEmbedding: boolean;
+  embeddingModel?: string | null;
+  createdAt: string;
+}
+
+export interface KnowledgeCitation {
+  chunkId: string;
+  documentId: string;
+  documentTitle: string;
+  category: string;
+  pageNumber?: number | null;
+  sectionTitle?: string | null;
+  excerpt: string;
+  similarityScore?: number;
+}
+
+export interface KnowledgeSearchResult {
+  chunkId: string;
+  documentId: string;
+  documentTitle: string;
+  category: string;
+  content: string;
+  pageNumber?: number | null;
+  sectionTitle?: string | null;
+  similarityScore: number;
+  searchMode: 'semantic' | 'keyword';
+}
+
+export interface KnowledgeAskResult {
+  answer: string;
+  citations: KnowledgeCitation[];
+  confidence: number;
+  searchMode: 'semantic' | 'keyword';
+  model?: string;
+  isAiConfigured: boolean;
+  retrievedCount: number;
+}
+
+export interface KnowledgeConfig {
+  aiConfigured: boolean;
+  embeddingModel: string;
+  chatModel: string;
+  baseUrl: string;
+  totalDocuments: number;
+  totalChunks: number;
+  totalEmbeddedChunks: number;
 }
 
 export interface PipelineColumn {

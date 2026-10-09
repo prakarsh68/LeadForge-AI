@@ -63,16 +63,43 @@ export function initializeDatabase(customDb?: Database.Database): void {
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
       category TEXT NOT NULL CHECK(category IN ('Product Specs', 'Battlecards', 'Case Studies', 'Pricing', 'Compliance')),
-      type TEXT NOT NULL CHECK(type IN ('pdf', 'doc', 'url', 'notion')),
+      type TEXT NOT NULL CHECK(type IN ('pdf', 'doc', 'docx', 'txt', 'md', 'url', 'notion')),
       size_or_tokens TEXT NOT NULL,
       status TEXT NOT NULL CHECK(status IN ('Indexed', 'Syncing', 'Ready')) DEFAULT 'Indexed',
       uploaded_at TEXT NOT NULL,
       summary TEXT NOT NULL DEFAULT '',
+      file_path TEXT DEFAULT NULL,
+      file_size INTEGER NOT NULL DEFAULT 0,
+      mime_type TEXT DEFAULT NULL,
+      content_hash TEXT DEFAULT NULL,
+      processing_status TEXT NOT NULL DEFAULT 'uploaded',
+      error_message TEXT DEFAULT NULL,
+      chunk_count INTEGER NOT NULL DEFAULT 0,
+      indexed_at TEXT DEFAULT NULL,
+      embedding_model TEXT DEFAULT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE INDEX IF NOT EXISTS idx_knowledge_category ON knowledge_documents(category);
+    CREATE INDEX IF NOT EXISTS idx_knowledge_processing_status ON knowledge_documents(processing_status);
+    CREATE INDEX IF NOT EXISTS idx_knowledge_content_hash ON knowledge_documents(content_hash);
+
+    CREATE TABLE IF NOT EXISTS knowledge_chunks (
+      id TEXT PRIMARY KEY,
+      document_id TEXT NOT NULL REFERENCES knowledge_documents(id) ON DELETE CASCADE,
+      chunk_index INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      page_number INTEGER DEFAULT NULL,
+      section_title TEXT DEFAULT NULL,
+      char_count INTEGER NOT NULL,
+      embedding TEXT DEFAULT NULL,
+      embedding_model TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_doc_id ON knowledge_chunks(document_id);
+    CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_model ON knowledge_chunks(embedding_model);
 
     CREATE TABLE IF NOT EXISTS activities (
       id TEXT PRIMARY KEY,
@@ -348,6 +375,85 @@ export function initializeDatabase(customDb?: Database.Database): void {
 
   db.exec('CREATE INDEX IF NOT EXISTS idx_discovery_jobs_lease ON discovery_jobs(status, lease_expires_at);');
 
+  // Phase 4: Knowledge Documents additive columns and type migration
+  const kdMaster = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='knowledge_documents'").get() as { sql: string } | undefined;
+  if (kdMaster && !kdMaster.sql.includes('docx')) {
+    db.exec('PRAGMA foreign_keys = OFF;');
+    db.exec(`
+      CREATE TABLE knowledge_documents_p4 (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        category TEXT NOT NULL CHECK(category IN ('Product Specs', 'Battlecards', 'Case Studies', 'Pricing', 'Compliance')),
+        type TEXT NOT NULL CHECK(type IN ('pdf', 'doc', 'docx', 'txt', 'md', 'url', 'notion')),
+        size_or_tokens TEXT NOT NULL,
+        status TEXT NOT NULL CHECK(status IN ('Indexed', 'Syncing', 'Ready')) DEFAULT 'Indexed',
+        uploaded_at TEXT NOT NULL,
+        summary TEXT NOT NULL DEFAULT '',
+        file_path TEXT DEFAULT NULL,
+        file_size INTEGER NOT NULL DEFAULT 0,
+        mime_type TEXT DEFAULT NULL,
+        content_hash TEXT DEFAULT NULL,
+        processing_status TEXT NOT NULL DEFAULT 'uploaded',
+        error_message TEXT DEFAULT NULL,
+        chunk_count INTEGER NOT NULL DEFAULT 0,
+        indexed_at TEXT DEFAULT NULL,
+        embedding_model TEXT DEFAULT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      INSERT INTO knowledge_documents_p4 (
+        id, title, category, type, size_or_tokens, status, uploaded_at, summary,
+        created_at, updated_at
+      )
+      SELECT
+        id, title, category, type, size_or_tokens, status, uploaded_at, summary,
+        created_at, updated_at
+      FROM knowledge_documents;
+
+      DROP TABLE knowledge_documents;
+      ALTER TABLE knowledge_documents_p4 RENAME TO knowledge_documents;
+
+      CREATE INDEX IF NOT EXISTS idx_knowledge_category ON knowledge_documents(category);
+    `);
+    db.exec('PRAGMA foreign_keys = ON;');
+  }
+
+  const kdCols = db.prepare('PRAGMA table_info(knowledge_documents)').all() as Array<{ name: string }>;
+  const kdColNames = kdCols.map((c) => c.name);
+  if (!kdColNames.includes('file_path')) {
+    db.exec('ALTER TABLE knowledge_documents ADD COLUMN file_path TEXT DEFAULT NULL;');
+  }
+  if (!kdColNames.includes('file_size')) {
+    db.exec('ALTER TABLE knowledge_documents ADD COLUMN file_size INTEGER NOT NULL DEFAULT 0;');
+  }
+  if (!kdColNames.includes('mime_type')) {
+    db.exec('ALTER TABLE knowledge_documents ADD COLUMN mime_type TEXT DEFAULT NULL;');
+  }
+  if (!kdColNames.includes('content_hash')) {
+    db.exec('ALTER TABLE knowledge_documents ADD COLUMN content_hash TEXT DEFAULT NULL;');
+  }
+  if (!kdColNames.includes('processing_status')) {
+    db.exec("ALTER TABLE knowledge_documents ADD COLUMN processing_status TEXT NOT NULL DEFAULT 'uploaded';");
+  }
+  if (!kdColNames.includes('error_message')) {
+    db.exec('ALTER TABLE knowledge_documents ADD COLUMN error_message TEXT DEFAULT NULL;');
+  }
+  if (!kdColNames.includes('chunk_count')) {
+    db.exec('ALTER TABLE knowledge_documents ADD COLUMN chunk_count INTEGER NOT NULL DEFAULT 0;');
+  }
+  if (!kdColNames.includes('indexed_at')) {
+    db.exec('ALTER TABLE knowledge_documents ADD COLUMN indexed_at TEXT DEFAULT NULL;');
+  }
+  if (!kdColNames.includes('embedding_model')) {
+    db.exec('ALTER TABLE knowledge_documents ADD COLUMN embedding_model TEXT DEFAULT NULL;');
+  }
+
+  db.exec('CREATE INDEX IF NOT EXISTS idx_knowledge_processing_status ON knowledge_documents(processing_status);');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_knowledge_content_hash ON knowledge_documents(content_hash);');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_doc_id ON knowledge_chunks(document_id);');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_model ON knowledge_chunks(embedding_model);');
+
   // Seed default ICP profile if none exists
   const icpCount = (db.prepare('SELECT COUNT(*) as count FROM icp_profiles').get() as { count: number }).count;
   if (icpCount === 0) {
@@ -543,8 +649,9 @@ export function initializeDatabase(customDb?: Database.Database): void {
   if (docsCount === 0) {
     const insertDoc = db.prepare(`
       INSERT INTO knowledge_documents (
-        id, title, category, type, size_or_tokens, status, uploaded_at, summary
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        id, title, category, type, size_or_tokens, status, uploaded_at, summary,
+        processing_status, chunk_count, file_size
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'indexed', 3, ?)
     `);
 
     const initialDocs = [
@@ -557,6 +664,7 @@ export function initializeDatabase(customDb?: Database.Database): void {
         status: 'Indexed',
         uploadedAt: 'Today, 10:14 AM',
         summary: 'Core product overview detailing autonomous data enrichment, LLM verification agent, and CRM bidirectional sync.',
+        fileSize: 2516582,
       },
       {
         id: 'doc-2',
@@ -567,6 +675,7 @@ export function initializeDatabase(customDb?: Database.Database): void {
         status: 'Indexed',
         uploadedAt: 'Yesterday',
         summary: 'Seat tiers, enrichment credit allocations, custom webhook connector fees, and contract terms.',
+        fileSize: 870400,
       },
     ];
 
@@ -580,12 +689,99 @@ export function initializeDatabase(customDb?: Database.Database): void {
           doc.sizeOrTokens,
           doc.status,
           doc.uploadedAt,
-          doc.summary
+          doc.summary,
+          doc.fileSize
         );
       }
     });
 
     insertDocsTransaction(initialDocs);
+  }
+
+  // Seed default knowledge chunks if chunks table is empty
+  const chunksCount = (db.prepare('SELECT COUNT(*) as count FROM knowledge_chunks').get() as { count: number }).count;
+  if (chunksCount === 0) {
+    const insertChunk = db.prepare(`
+      INSERT INTO knowledge_chunks (
+        id, document_id, chunk_index, content, page_number, section_title, char_count
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const seedChunks = [
+      {
+        id: 'chunk-doc-1-0',
+        document_id: 'doc-1',
+        chunk_index: 0,
+        content: 'LeadForge AI is an autonomous inbound and outbound revenue acceleration platform designed for B2B enterprises. The system orchestrates multi-source company discovery, verified executive contact extraction, and real-time buying trigger synthesis to qualify high-conversion pipeline opportunities.',
+        page_number: 1,
+        section_title: 'Executive Platform Overview',
+        char_count: 312,
+      },
+      {
+        id: 'chunk-doc-1-1',
+        document_id: 'doc-1',
+        chunk_index: 1,
+        content: 'Deterministic ICP Qualification Engine: LeadForge evaluates candidate leads across target industry alignment, employee headcount thresholds, role and seniority hierarchy, verified email deliverability via Hunter.io, and technology stack footprint. Scored criteria produce explainable point breakdowns.',
+        page_number: 2,
+        section_title: 'ICP Evaluation & Scoring Architecture',
+        char_count: 322,
+      },
+      {
+        id: 'chunk-doc-1-2',
+        document_id: 'doc-1',
+        chunk_index: 2,
+        content: 'Enterprise Integration & Compliance: Bidirectional CRM synchronization connects directly with Salesforce and HubSpot. All data pipelines adhere strictly to SOC2 Type II, ISO 27001, and GDPR compliance regulations with verifiable field-level provenance audit logs.',
+        page_number: 3,
+        section_title: 'Security, Privacy & CRM Connectors',
+        char_count: 271,
+      },
+      {
+        id: 'chunk-doc-2-0',
+        document_id: 'doc-2',
+        chunk_index: 0,
+        content: 'Enterprise Tier Licensing: Annual enterprise subscription starts at $24,000 per year billed annually. The plan includes up to 25 revenue team seats, 50,000 monthly verified enrichment credits, custom webhooks, and a dedicated Customer Success Architect with guaranteed 99.9% SLA.',
+        page_number: 1,
+        section_title: 'Enterprise Tier & Annual Contracts',
+        char_count: 297,
+      },
+      {
+        id: 'chunk-doc-2-1',
+        document_id: 'doc-2',
+        chunk_index: 1,
+        content: 'Growth Tier Licensing: Monthly subscription starts at $1,200 per month ($12,000 billed annually). Includes 5 seats and 10,000 monthly enrichment credits. Additional contact credits over quota are billed at $0.08 per credit with real-time usage telemetry.',
+        page_number: 1,
+        section_title: 'Growth Tier & Overage Rates',
+        char_count: 260,
+      },
+      {
+        id: 'chunk-doc-2-2',
+        document_id: 'doc-2',
+        chunk_index: 2,
+        content: 'Discount Guidelines & Onboarding: Multi-year commitment discount: 10% discount for 2-year upfront commitment, 15% discount for 3-year commitment. Implementation onboarding and custom Salesforce field mapping carries a one-time setup fee of $2,500.',
+        page_number: 2,
+        section_title: 'Multi-Year Discounts & Implementation Fees',
+        char_count: 267,
+      },
+    ];
+
+    const insertChunksTransaction = db.transaction((chunksList) => {
+      for (const ch of chunksList) {
+        insertChunk.run(
+          ch.id,
+          ch.document_id,
+          ch.chunk_index,
+          ch.content,
+          ch.page_number,
+          ch.section_title,
+          ch.char_count
+        );
+      }
+    });
+
+    insertChunksTransaction(seedChunks);
+
+    // Update chunk_count and processing_status on seeded docs
+    db.prepare("UPDATE knowledge_documents SET chunk_count = 3, processing_status = 'indexed' WHERE id IN ('doc-1', 'doc-2')").run();
   }
 
   // Seed default activities if table is empty

@@ -3,6 +3,10 @@ import type {
   LeadStatus,
   IcpProfile,
   KnowledgeDocument,
+  KnowledgeChunk,
+  KnowledgeSearchResult,
+  KnowledgeAskResult,
+  KnowledgeConfig,
   ActivityItem,
   Opportunity,
   PipelineSummary,
@@ -32,9 +36,13 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> || {}),
   };
+
+  // Only set application/json if body is not FormData
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+  }
 
   let response: Response;
   try {
@@ -281,6 +289,64 @@ export const api = {
     await request<void>(`/api/knowledge-documents/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     });
+  },
+
+  // Phase 4: Knowledge Intelligence & RAG Methods
+  async uploadKnowledgeDoc(formData: FormData): Promise<KnowledgeDocument> {
+    return request<KnowledgeDocument>('/api/knowledge/upload', {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
+  async getKnowledgeChunks(docId: string): Promise<KnowledgeChunk[]> {
+    return request<KnowledgeChunk[]>(`/api/knowledge/documents/${encodeURIComponent(docId)}/chunks`);
+  },
+
+  async reindexKnowledgeDoc(docId: string): Promise<KnowledgeDocument> {
+    return request<KnowledgeDocument>(`/api/knowledge/documents/${encodeURIComponent(docId)}/reindex`, {
+      method: 'POST',
+    });
+  },
+
+  async retryKnowledgeDoc(docId: string): Promise<KnowledgeDocument> {
+    return request<KnowledgeDocument>(`/api/knowledge/documents/${encodeURIComponent(docId)}/retry`, {
+      method: 'POST',
+    });
+  },
+
+  async searchKnowledge(
+    query: string,
+    options: { category?: string; limit?: number; minSimilarity?: number } = {}
+  ): Promise<KnowledgeSearchResult[]> {
+    return request<KnowledgeSearchResult[]>('/api/knowledge/search', {
+      method: 'POST',
+      body: JSON.stringify({
+        query,
+        category: options.category !== 'All' ? options.category : undefined,
+        limit: options.limit,
+        minSimilarity: options.minSimilarity,
+      }),
+    });
+  },
+
+  async askKnowledge(
+    question: string,
+    options: { category?: string; topK?: number; minSimilarity?: number } = {}
+  ): Promise<KnowledgeAskResult> {
+    return request<KnowledgeAskResult>('/api/knowledge/ask', {
+      method: 'POST',
+      body: JSON.stringify({
+        question,
+        category: options.category !== 'All' ? options.category : undefined,
+        topK: options.topK,
+        minSimilarity: options.minSimilarity,
+      }),
+    });
+  },
+
+  async getKnowledgeConfig(): Promise<KnowledgeConfig> {
+    return request<KnowledgeConfig>('/api/knowledge/config');
   },
 
   // Discovery API

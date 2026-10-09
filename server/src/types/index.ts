@@ -258,17 +258,49 @@ export interface QualificationResult {
   evaluatedAt: string;
 }
 
+export type KnowledgeProcessingStatus =
+  | 'uploaded'
+  | 'extracting'
+  | 'extracted'
+  | 'chunking'
+  | 'chunked'
+  | 'indexing'
+  | 'indexed'
+  | 'failed';
+
 export interface KnowledgeDocumentEntity {
   id: string;
   title: string;
   category: 'Product Specs' | 'Battlecards' | 'Case Studies' | 'Pricing' | 'Compliance';
-  type: 'pdf' | 'doc' | 'url' | 'notion';
+  type: 'pdf' | 'doc' | 'docx' | 'txt' | 'md' | 'url' | 'notion';
   size_or_tokens: string;
   status: 'Indexed' | 'Syncing' | 'Ready';
   uploaded_at: string;
   summary: string;
+  file_path?: string | null;
+  file_size?: number;
+  mime_type?: string | null;
+  content_hash?: string | null;
+  processing_status?: KnowledgeProcessingStatus;
+  error_message?: string | null;
+  chunk_count?: number;
+  indexed_at?: string | null;
+  embedding_model?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface KnowledgeChunkEntity {
+  id: string;
+  document_id: string;
+  chunk_index: number;
+  content: string;
+  page_number?: number | null;
+  section_title?: string | null;
+  char_count: number;
+  embedding?: string | null;
+  embedding_model?: string | null;
+  created_at: string;
 }
 
 export interface ActivityEntity {
@@ -348,17 +380,82 @@ export interface IcpProfileDTO {
   updatedAt: string;
 }
 
+export interface KnowledgeChunkDTO {
+  id: string;
+  documentId: string;
+  chunkIndex: number;
+  content: string;
+  pageNumber?: number | null;
+  sectionTitle?: string | null;
+  charCount: number;
+  hasEmbedding: boolean;
+  embeddingModel?: string | null;
+  createdAt: string;
+}
+
 export interface KnowledgeDocumentDTO {
   id: string;
   title: string;
   category: 'Product Specs' | 'Battlecards' | 'Case Studies' | 'Pricing' | 'Compliance';
-  type: 'pdf' | 'doc' | 'url' | 'notion';
+  type: 'pdf' | 'doc' | 'docx' | 'txt' | 'md' | 'url' | 'notion';
   sizeOrTokens: string;
   status: 'Indexed' | 'Syncing' | 'Ready';
   uploadedAt: string;
   summary: string;
+  filePath?: string | null;
+  fileSize?: number;
+  mimeType?: string | null;
+  contentHash?: string | null;
+  processingStatus?: KnowledgeProcessingStatus;
+  errorMessage?: string | null;
+  chunkCount?: number;
+  indexedAt?: string | null;
+  embeddingModel?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface KnowledgeCitation {
+  chunkId: string;
+  documentId: string;
+  documentTitle: string;
+  category: string;
+  pageNumber?: number | null;
+  sectionTitle?: string | null;
+  excerpt: string;
+  similarityScore?: number;
+}
+
+export interface KnowledgeSearchResult {
+  chunkId: string;
+  documentId: string;
+  documentTitle: string;
+  category: string;
+  content: string;
+  pageNumber?: number | null;
+  sectionTitle?: string | null;
+  similarityScore: number;
+  searchMode: 'semantic' | 'keyword';
+}
+
+export interface KnowledgeAskResult {
+  answer: string;
+  citations: KnowledgeCitation[];
+  confidence: number;
+  searchMode: 'semantic' | 'keyword';
+  model?: string;
+  isAiConfigured: boolean;
+  retrievedCount: number;
+}
+
+export interface KnowledgeConfigDTO {
+  aiConfigured: boolean;
+  embeddingModel: string;
+  chatModel: string;
+  baseUrl: string;
+  totalDocuments: number;
+  totalChunks: number;
+  totalEmbeddedChunks: number;
 }
 
 export interface ActivityDTO {

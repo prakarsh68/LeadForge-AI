@@ -3,6 +3,7 @@ import type { KnowledgeDocumentEntity, KnowledgeDocumentDTO } from '../types/ind
 import { knowledgeDocEntityToDto } from '../utils/serializers.js';
 import { ALLOWED_DOC_CATEGORIES, ALLOWED_DOC_TYPES } from '../utils/validators.js';
 import { activityService } from './activityService.js';
+import { knowledgePipelineService } from './knowledge/knowledgePipelineService.js';
 
 export interface CreateKnowledgeDocInput {
   title: string;
@@ -110,7 +111,17 @@ export const knowledgeService = {
     if (!created) {
       throw new Error('Failed to retrieve newly created knowledge document');
     }
-    return created;
+
+    // Create initial chunk so metadata document is searchable
+    const chunkText = summary || `${data.title} (${data.category})`;
+    db.prepare(`
+      INSERT OR IGNORE INTO knowledge_chunks (
+        id, document_id, chunk_index, content, page_number, section_title, char_count
+      ) VALUES (?, ?, 0, ?, 1, 'Overview', ?)
+    `).run(`chunk-${id}-0`, id, chunkText, chunkText.length);
+    db.prepare("UPDATE knowledge_documents SET chunk_count = 1, processing_status = 'indexed' WHERE id = ?").run(id);
+
+    return this.getById(id)!;
   },
 
   update(id: string, updates: UpdateKnowledgeDocInput): KnowledgeDocumentDTO {
@@ -173,13 +184,7 @@ export const knowledgeService = {
   },
 
   delete(id: string): boolean {
-    const db = getDb();
-    const existing = db.prepare('SELECT id FROM knowledge_documents WHERE id = ?').get(id);
-    if (!existing) {
-      return false;
-    }
-    db.prepare('DELETE FROM knowledge_documents WHERE id = ?').run(id);
-    return true;
+    return knowledgePipelineService.deleteDocument(id);
   },
 };
 
