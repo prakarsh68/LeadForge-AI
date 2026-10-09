@@ -10,6 +10,7 @@ import { LeadsView } from './components/leads/LeadsView';
 import { PipelineView } from './components/pipeline/PipelineView';
 import { KnowledgeBaseView } from './components/knowledge/KnowledgeBaseView';
 import { DiscoveryView } from './components/discovery/DiscoveryView';
+import { OutreachView } from './components/outreach/OutreachView';
 import { LeadDetailModal } from './components/leads/LeadDetailModal';
 import { AlertTriangle, RefreshCw, X, CheckCircle2 } from 'lucide-react';
 
@@ -626,6 +627,14 @@ export const App: React.FC = () => {
                   onAddDocument={handleAddDoc}
                   onDeleteDocument={handleDeleteDoc}
                   onUpdateDocument={handleUpdateDoc}
+                />
+              )}
+
+              {currentView === 'outreach' && (
+                <OutreachView
+                  leads={leads}
+                  onSelectLead={(lead) => setSelectedLead(lead)}
+                  onRefreshLeads={refreshFromBackend}
                 />
               )}
             </>

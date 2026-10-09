@@ -82,8 +82,6 @@ export function initializeDatabase(customDb?: Database.Database): void {
     );
 
     CREATE INDEX IF NOT EXISTS idx_knowledge_category ON knowledge_documents(category);
-    CREATE INDEX IF NOT EXISTS idx_knowledge_processing_status ON knowledge_documents(processing_status);
-    CREATE INDEX IF NOT EXISTS idx_knowledge_content_hash ON knowledge_documents(content_hash);
 
     CREATE TABLE IF NOT EXISTS knowledge_chunks (
       id TEXT PRIMARY KEY,
@@ -174,7 +172,6 @@ export function initializeDatabase(customDb?: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_discovery_jobs_status ON discovery_jobs(status);
     CREATE INDEX IF NOT EXISTS idx_discovery_jobs_created_at ON discovery_jobs(created_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_discovery_jobs_lease ON discovery_jobs(status, lease_expires_at);
 
     CREATE TABLE IF NOT EXISTS discovered_candidates (
       id TEXT PRIMARY KEY,
@@ -209,6 +206,322 @@ export function initializeDatabase(customDb?: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_discovered_candidates_domain ON discovered_candidates(company_domain);
     CREATE INDEX IF NOT EXISTS idx_discovered_candidates_email ON discovered_candidates(email);
     CREATE INDEX IF NOT EXISTS idx_discovered_candidates_status ON discovered_candidates(status);
+
+    -- Phase 5: Outreach Campaigns, Sequences, Messages, Events, CRM & Opportunity Scoring
+    CREATE TABLE IF NOT EXISTS outreach_campaigns (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      target_icp_id TEXT REFERENCES icp_profiles(id) ON DELETE SET NULL,
+      status TEXT NOT NULL CHECK(status IN ('draft', 'active', 'paused', 'completed', 'archived')) DEFAULT 'draft',
+      sending_limits TEXT NOT NULL DEFAULT '{"maxPerDay":50,"minIntervalSeconds":60}',
+      schedule_window TEXT NOT NULL DEFAULT '{"timezone":"UTC","allowedDays":[1,2,3,4,5],"startHour":9,"endHour":17}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_outreach_campaigns_status ON outreach_campaigns(status);
+
+    CREATE TABLE IF NOT EXISTS outreach_sequences (
+      id TEXT PRIMARY KEY,
+      campaign_id TEXT REFERENCES outreach_campaigns(id) ON DELETE SET NULL,
+      lead_id TEXT NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+      status TEXT NOT NULL CHECK(status IN ('draft', 'pending_approval', 'approved', 'scheduled', 'active', 'paused', 'completed', 'cancelled', 'stopped_on_reply', 'stopped_on_opt_out', 'failed')) DEFAULT 'draft',
+      current_step INTEGER NOT NULL DEFAULT 1,
+      max_steps INTEGER NOT NULL DEFAULT 3,
+      next_scheduled_at TEXT DEFAULT NULL,
+      approved_at TEXT DEFAULT NULL,
+      approved_by TEXT DEFAULT NULL,
+      stop_reason TEXT DEFAULT NULL,
+      lease_expires_at TEXT DEFAULT NULL,
+      claimed_by TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_outreach_sequences_lead_id ON outreach_sequences(lead_id);
+    CREATE INDEX IF NOT EXISTS idx_outreach_sequences_campaign_id ON outreach_sequences(campaign_id);
+    CREATE INDEX IF NOT EXISTS idx_outreach_sequences_status ON outreach_sequences(status);
+    CREATE INDEX IF NOT EXISTS idx_outreach_sequences_schedule ON outreach_sequences(status, next_scheduled_at, lease_expires_at);
+
+    CREATE TABLE IF NOT EXISTS outreach_messages (
+      id TEXT PRIMARY KEY,
+      sequence_id TEXT NOT NULL REFERENCES outreach_sequences(id) ON DELETE CASCADE,
+      step_number INTEGER NOT NULL CHECK(step_number IN (1, 2, 3)),
+      subject TEXT NOT NULL,
+      body_html TEXT NOT NULL,
+      body_text TEXT NOT NULL,
+      personalization_evidence TEXT NOT NULL DEFAULT '[]',
+      status TEXT NOT NULL CHECK(status IN ('draft', 'approved', 'scheduled', 'sending', 'sent', 'delivered', 'bounced', 'failed', 'cancelled')) DEFAULT 'draft',
+      provider_message_id TEXT DEFAULT NULL,
+      attempt_count INTEGER NOT NULL DEFAULT 0,
+      scheduled_at TEXT DEFAULT NULL,
+      sent_at TEXT DEFAULT NULL,
+      error_message TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_outreach_messages_seq_step ON outreach_messages(sequence_id, step_number);
+    CREATE INDEX IF NOT EXISTS idx_outreach_messages_status ON outreach_messages(status);
+
+    CREATE TABLE IF NOT EXISTS engagement_events (
+      id TEXT PRIMARY KEY,
+      lead_id TEXT NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+      sequence_id TEXT REFERENCES outreach_sequences(id) ON DELETE SET NULL,
+      message_id TEXT REFERENCES outreach_messages(id) ON DELETE SET NULL,
+      campaign_id TEXT REFERENCES outreach_campaigns(id) ON DELETE SET NULL,
+      event_type TEXT NOT NULL CHECK(event_type IN ('sent', 'delivered', 'opened', 'clicked', 'replied', 'bounced', 'complained', 'unsubscribed', 'meeting_booked')),
+      event_timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+      provider_event_id TEXT UNIQUE DEFAULT NULL,
+      source_metadata TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_engagement_events_lead_id ON engagement_events(lead_id);
+    CREATE INDEX IF NOT EXISTS idx_engagement_events_seq_id ON engagement_events(sequence_id);
+    CREATE INDEX IF NOT EXISTS idx_engagement_events_type ON engagement_events(event_type);
+
+    CREATE TABLE IF NOT EXISTS suppression_list (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      reason TEXT NOT NULL CHECK(reason IN ('unsubscribed', 'bounced', 'manual', 'complaint')),
+      source TEXT NOT NULL DEFAULT 'system',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_suppression_list_email ON suppression_list(email);
+
+    CREATE TABLE IF NOT EXISTS crm_sync_records (
+      id TEXT PRIMARY KEY,
+      lead_id TEXT NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+      opportunity_id TEXT REFERENCES opportunities(id) ON DELETE SET NULL,
+      crm_provider TEXT NOT NULL CHECK(crm_provider IN ('hubspot', 'salesforce')),
+      external_contact_id TEXT DEFAULT NULL,
+      external_company_id TEXT DEFAULT NULL,
+      external_deal_id TEXT DEFAULT NULL,
+      sync_status TEXT NOT NULL CHECK(sync_status IN ('synced', 'pending', 'failed')) DEFAULT 'pending',
+      last_synced_at TEXT DEFAULT NULL,
+      retry_count INTEGER NOT NULL DEFAULT 0,
+      error_message TEXT DEFAULT NULL,
+      field_mappings TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_crm_sync_records_lead_id ON crm_sync_records(lead_id);
+    CREATE INDEX IF NOT EXISTS idx_crm_sync_records_status ON crm_sync_records(sync_status);
+
+    CREATE TABLE IF NOT EXISTS opportunity_scores (
+      id TEXT PRIMARY KEY,
+      lead_id TEXT NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+      opportunity_id TEXT REFERENCES opportunities(id) ON DELETE SET NULL,
+      score INTEGER NOT NULL CHECK(score >= 0 AND score <= 100),
+      readiness_tier TEXT NOT NULL CHECK(readiness_tier IN ('high', 'medium', 'low')),
+      factors TEXT NOT NULL DEFAULT '[]',
+      evidence_references TEXT NOT NULL DEFAULT '[]',
+      scoring_version TEXT NOT NULL DEFAULT '1.0',
+      is_stale INTEGER NOT NULL DEFAULT 0,
+      evaluated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_opportunity_scores_lead_id ON opportunity_scores(lead_id);
+    CREATE INDEX IF NOT EXISTS idx_opportunity_scores_opp_id ON opportunity_scores(opportunity_id);
+
+    -- Phase 6A: Adaptive Source Intelligence Engine Tables
+    CREATE TABLE IF NOT EXISTS source_registry_entries (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      provider_type TEXT NOT NULL,
+      capabilities TEXT NOT NULL DEFAULT '[]',
+      is_enabled INTEGER NOT NULL DEFAULT 1,
+      is_configured INTEGER NOT NULL DEFAULT 0,
+      health_status TEXT NOT NULL CHECK(health_status IN ('healthy', 'degraded', 'unreachable', 'unknown')) DEFAULT 'unknown',
+      last_health_check TEXT DEFAULT NULL,
+      cost_model TEXT NOT NULL DEFAULT '{}',
+      rate_limits TEXT NOT NULL DEFAULT '{}',
+      metadata TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_source_registry_enabled ON source_registry_entries(is_enabled);
+    CREATE INDEX IF NOT EXISTS idx_source_registry_provider ON source_registry_entries(provider_type);
+
+    CREATE TABLE IF NOT EXISTS source_observations (
+      id TEXT PRIMARY KEY,
+      source_id TEXT NOT NULL REFERENCES source_registry_entries(id) ON DELETE CASCADE,
+      source_record_id TEXT DEFAULT NULL,
+      entity_type TEXT NOT NULL CHECK(entity_type IN ('company', 'contact', 'signal')),
+      entity_key TEXT NOT NULL,
+      observed_at TEXT NOT NULL DEFAULT (datetime('now')),
+      retrieved_at TEXT NOT NULL DEFAULT (datetime('now')),
+      source_url TEXT DEFAULT NULL,
+      raw_payload TEXT NOT NULL DEFAULT '{}',
+      field_provenance TEXT NOT NULL DEFAULT '{}',
+      fingerprint TEXT NOT NULL,
+      processing_status TEXT NOT NULL CHECK(processing_status IN ('raw', 'normalized', 'deduped', 'rejected', 'ingested')) DEFAULT 'raw',
+      company_domain TEXT DEFAULT NULL,
+      contact_email TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_source_obs_entity_key ON source_observations(entity_key);
+    CREATE INDEX IF NOT EXISTS idx_source_obs_domain ON source_observations(company_domain);
+    CREATE INDEX IF NOT EXISTS idx_source_obs_email ON source_observations(contact_email);
+    CREATE INDEX IF NOT EXISTS idx_source_obs_source ON source_observations(source_id);
+
+    CREATE TABLE IF NOT EXISTS source_signals (
+      id TEXT PRIMARY KEY,
+      company_name TEXT NOT NULL,
+      company_domain TEXT NOT NULL,
+      signal_category TEXT NOT NULL CHECK(signal_category IN ('hiring', 'technology', 'funding', 'expansion', 'procurement', 'first_party_intent')),
+      source_id TEXT NOT NULL REFERENCES source_registry_entries(id) ON DELETE CASCADE,
+      source_url TEXT DEFAULT NULL,
+      event_timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+      observed_at TEXT NOT NULL DEFAULT (datetime('now')),
+      signal_text TEXT NOT NULL,
+      structured_evidence TEXT NOT NULL DEFAULT '{}',
+      confidence REAL NOT NULL DEFAULT 1.0,
+      relevance_score INTEGER NOT NULL DEFAULT 50,
+      dedup_fingerprint TEXT UNIQUE NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_source_signals_domain ON source_signals(company_domain);
+    CREATE INDEX IF NOT EXISTS idx_source_signals_cat ON source_signals(signal_category);
+    CREATE INDEX IF NOT EXISTS idx_source_signals_source ON source_signals(source_id);
+
+    CREATE TABLE IF NOT EXISTS sourcing_plans (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      target_icp_id TEXT REFERENCES icp_profiles(id) ON DELETE SET NULL,
+      campaign_objective TEXT NOT NULL DEFAULT '',
+      constraints TEXT NOT NULL DEFAULT '{}',
+      selected_sources TEXT NOT NULL DEFAULT '[]',
+      stages_pipeline TEXT NOT NULL DEFAULT '[]',
+      estimated_cost REAL DEFAULT NULL,
+      cost_known INTEGER NOT NULL DEFAULT 1,
+      expected_yield INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL CHECK(status IN ('draft', 'approved', 'executing', 'completed', 'cancelled', 'failed')) DEFAULT 'draft',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_sourcing_plans_status ON sourcing_plans(status);
+    CREATE INDEX IF NOT EXISTS idx_sourcing_plans_icp ON sourcing_plans(target_icp_id);
+
+    CREATE TABLE IF NOT EXISTS sourcing_jobs (
+      id TEXT PRIMARY KEY,
+      plan_id TEXT NOT NULL REFERENCES sourcing_plans(id) ON DELETE CASCADE,
+      status TEXT NOT NULL CHECK(status IN ('queued', 'running', 'completed', 'failed', 'cancelled')) DEFAULT 'queued',
+      stage_counts TEXT NOT NULL DEFAULT '{}',
+      records_sourced INTEGER NOT NULL DEFAULT 0,
+      records_deduped INTEGER NOT NULL DEFAULT 0,
+      records_screened INTEGER NOT NULL DEFAULT 0,
+      records_qualified INTEGER NOT NULL DEFAULT 0,
+      records_staged INTEGER NOT NULL DEFAULT 0,
+      cost_incurred REAL NOT NULL DEFAULT 0.0,
+      error_message TEXT DEFAULT NULL,
+      claimed_by TEXT DEFAULT NULL,
+      lease_expires_at TEXT DEFAULT NULL,
+      started_at TEXT DEFAULT NULL,
+      completed_at TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_sourcing_jobs_status ON sourcing_jobs(status, lease_expires_at);
+    CREATE INDEX IF NOT EXISTS idx_sourcing_jobs_plan ON sourcing_jobs(plan_id);
+
+    CREATE TABLE IF NOT EXISTS source_attributions (
+      id TEXT PRIMARY KEY,
+      lead_id TEXT REFERENCES leads(id) ON DELETE CASCADE,
+      candidate_id TEXT REFERENCES discovered_candidates(id) ON DELETE SET NULL,
+      source_id TEXT NOT NULL REFERENCES source_registry_entries(id) ON DELETE CASCADE,
+      role TEXT NOT NULL CHECK(role IN ('discovery', 'signal', 'contact_resolution', 'enrichment')),
+      confidence REAL NOT NULL DEFAULT 1.0,
+      attributed_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_source_attr_lead ON source_attributions(lead_id);
+    CREATE INDEX IF NOT EXISTS idx_source_attr_source ON source_attributions(source_id);
+
+    -- Phase 6B: Agentic Orchestration & Self-Optimizing Sourcing Tables
+    CREATE TABLE IF NOT EXISTS agentic_sourcing_runs (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      natural_language_intent TEXT NOT NULL,
+      target_icp_id TEXT REFERENCES icp_profiles(id) ON DELETE SET NULL,
+      plan_id TEXT REFERENCES sourcing_plans(id) ON DELETE SET NULL,
+      status TEXT NOT NULL CHECK(status IN ('planning', 'approved', 'running', 'completed', 'failed', 'cancelled')) DEFAULT 'planning',
+      budget_limit REAL NOT NULL DEFAULT 50.0,
+      budget_spent REAL NOT NULL DEFAULT 0.0,
+      target_yield INTEGER NOT NULL DEFAULT 25,
+      yield_achieved INTEGER NOT NULL DEFAULT 0,
+      efficiency_score REAL NOT NULL DEFAULT 0.0,
+      execution_strategy TEXT NOT NULL DEFAULT '{}',
+      error_message TEXT DEFAULT NULL,
+      started_at TEXT DEFAULT NULL,
+      completed_at TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_agentic_runs_status ON agentic_sourcing_runs(status);
+    CREATE INDEX IF NOT EXISTS idx_agentic_runs_created ON agentic_sourcing_runs(created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS agentic_sourcing_steps (
+      id TEXT PRIMARY KEY,
+      run_id TEXT NOT NULL REFERENCES agentic_sourcing_runs(id) ON DELETE CASCADE,
+      step_number INTEGER NOT NULL,
+      tool_name TEXT NOT NULL,
+      tool_input TEXT NOT NULL DEFAULT '{}',
+      tool_output TEXT NOT NULL DEFAULT '{}',
+      rationale TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL CHECK(status IN ('pending', 'running', 'success', 'failed', 'skipped')) DEFAULT 'success',
+      cost_incurred REAL NOT NULL DEFAULT 0.0,
+      duration_ms INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_agentic_steps_run ON agentic_sourcing_steps(run_id, step_number);
+
+    CREATE TABLE IF NOT EXISTS sourcing_optimization_weights (
+      id TEXT PRIMARY KEY,
+      source_id TEXT UNIQUE NOT NULL REFERENCES source_registry_entries(id) ON DELETE CASCADE,
+      empirical_yield_rate REAL NOT NULL DEFAULT 0.5,
+      empirical_duplicate_rate REAL NOT NULL DEFAULT 0.1,
+      empirical_reply_rate REAL NOT NULL DEFAULT 0.0,
+      empirical_meeting_rate REAL NOT NULL DEFAULT 0.0,
+      quality_multiplier REAL NOT NULL DEFAULT 1.0,
+      learned_cost_efficiency REAL NOT NULL DEFAULT 1.0,
+      total_leads_attributed INTEGER NOT NULL DEFAULT 0,
+      total_meetings_attributed INTEGER NOT NULL DEFAULT 0,
+      total_pipeline_attributed REAL NOT NULL DEFAULT 0.0,
+      last_optimized_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_sow_source ON sourcing_optimization_weights(source_id);
+
+    CREATE TABLE IF NOT EXISTS sourcing_experiments (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL CHECK(status IN ('running', 'completed', 'failed')) DEFAULT 'completed',
+      baseline_strategy TEXT NOT NULL DEFAULT 'deterministic_phase6a',
+      agentic_strategy TEXT NOT NULL DEFAULT 'adaptive_agentic_phase6b',
+      sample_size INTEGER NOT NULL DEFAULT 100,
+      baseline_metrics TEXT NOT NULL DEFAULT '{}',
+      agentic_metrics TEXT NOT NULL DEFAULT '{}',
+      uplift_summary TEXT NOT NULL DEFAULT '{}',
+      concluded_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_sourcing_exp_created ON sourcing_experiments(created_at DESC);
   `);
 
   // Safe additive migrations for existing tables
@@ -845,5 +1158,389 @@ export function initializeDatabase(customDb?: Database.Database): void {
       insertOppsTx(existingLeads);
     }
   }
+
+  // Phase 5: Seed default outreach campaign if none exists
+  const campCount = (db.prepare('SELECT COUNT(*) as count FROM outreach_campaigns').get() as { count: number }).count;
+  if (campCount === 0) {
+    const insertCamp = db.prepare(`
+      INSERT INTO outreach_campaigns (
+        id, name, description, target_icp_id, status, sending_limits, schedule_window
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    insertCamp.run(
+      'camp-1',
+      'Enterprise Growth Sequence',
+      'Autonomous 3-step outreach sequence targeting high-ICP leads with validated buying triggers and personalized collateral.',
+      'icp-default',
+      'active',
+      JSON.stringify({ maxPerDay: 50, minIntervalSeconds: 60 }),
+      JSON.stringify({ timezone: 'UTC', allowedDays: [1, 2, 3, 4, 5], startHour: 9, endHour: 17 })
+    );
+  }
+
+  // Phase 5: Seed suppression list if empty
+  const supCount = (db.prepare('SELECT COUNT(*) as count FROM suppression_list').get() as { count: number }).count;
+  if (supCount === 0) {
+    const insertSup = db.prepare(`
+      INSERT INTO suppression_list (id, email, reason, source)
+      VALUES (?, ?, ?, ?)
+    `);
+    insertSup.run('sup-1', 'optout-test@example.com', 'unsubscribed', 'manual');
+  }
+
+  // Phase 6A: Seed default source registry entries
+  const sourceRegCount = (db.prepare('SELECT COUNT(*) as count FROM source_registry_entries').get() as { count: number }).count;
+  if (sourceRegCount === 0) {
+    const insertSource = db.prepare(`
+      INSERT INTO source_registry_entries (
+        id, name, provider_type, capabilities, is_enabled, is_configured, health_status,
+        last_health_check, cost_model, rate_limits, metadata
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?)
+    `);
+
+    const hasHunterKey = Boolean(process.env.HUNTER_API_KEY && process.env.HUNTER_API_KEY.trim() !== '');
+
+    const defaultSources = [
+      {
+        id: 'hunter',
+        name: 'Hunter.io Domain & Email Intelligence',
+        providerType: 'hunter',
+        capabilities: ['contact_discovery', 'contact_verification'],
+        isEnabled: 1,
+        isConfigured: hasHunterKey ? 1 : 0,
+        healthStatus: hasHunterKey ? 'healthy' : 'degraded',
+        costModel: { perRecord: 0.04, perVerification: 0.01, currency: 'USD' },
+        rateLimits: { requestsPerMinute: 60, dailyQuota: 500 },
+        metadata: { supportedSearch: ['domain', 'company', 'role'], sourceTier: 'premium_enrichment' },
+      },
+      {
+        id: 'first_party_crm',
+        name: 'First-Party CRM & Lead Intelligence',
+        providerType: 'first_party_crm',
+        capabilities: ['first_party_records', 'company_discovery'],
+        isEnabled: 1,
+        isConfigured: 1,
+        healthStatus: 'healthy',
+        costModel: { perRecord: 0.00, perVerification: 0.00, currency: 'USD' },
+        rateLimits: { requestsPerMinute: 600, dailyQuota: 50000 },
+        metadata: { supportedSearch: ['status', 'score', 'industry'], sourceTier: 'first_party' },
+      },
+      {
+        id: 'job_board_signals',
+        name: 'Job Board Hiring & Team Growth Signals',
+        providerType: 'hiring_signals',
+        capabilities: ['hiring_signals', 'company_discovery'],
+        isEnabled: 1,
+        isConfigured: 1,
+        healthStatus: 'healthy',
+        costModel: { perRecord: 0.01, perVerification: 0.00, currency: 'USD' },
+        rateLimits: { requestsPerMinute: 120, dailyQuota: 5000 },
+        metadata: { supportedSearch: ['hiringKeywords', 'roleCategories'], sourceTier: 'signal_intelligence' },
+      },
+      {
+        id: 'tech_stack_signals',
+        name: 'Technology Stack & Infrastructure Signals',
+        providerType: 'technology_signals',
+        capabilities: ['technology_signals', 'company_discovery'],
+        isEnabled: 1,
+        isConfigured: 1,
+        healthStatus: 'healthy',
+        costModel: { perRecord: 0.02, perVerification: 0.00, currency: 'USD' },
+        rateLimits: { requestsPerMinute: 100, dailyQuota: 3000 },
+        metadata: { supportedSearch: ['techStack', 'domain'], sourceTier: 'signal_intelligence' },
+      },
+      {
+        id: 'demo_adaptive_source',
+        name: 'Adaptive Demo Multi-Signal Provider',
+        providerType: 'demo_signals',
+        capabilities: ['company_discovery', 'contact_discovery', 'hiring_signals', 'technology_signals', 'funding_signals'],
+        isEnabled: 1,
+        isConfigured: 1,
+        healthStatus: 'healthy',
+        costModel: { perRecord: 0.00, perVerification: 0.00, currency: 'USD' },
+        rateLimits: { requestsPerMinute: 1000, dailyQuota: 100000 },
+        metadata: { isDemo: true, sourceTier: 'demo' },
+      },
+    ];
+
+    const insertSourcesTx = db.transaction((sources) => {
+      for (const s of sources) {
+        insertSource.run(
+          s.id,
+          s.name,
+          s.providerType,
+          JSON.stringify(s.capabilities),
+          s.isEnabled,
+          s.isConfigured,
+          s.healthStatus,
+          JSON.stringify(s.costModel),
+          JSON.stringify(s.rateLimits),
+          JSON.stringify(s.metadata)
+        );
+      }
+    });
+
+    insertSourcesTx(defaultSources);
+  }
+
+  // Phase 6A: Seed sample business signals if empty
+  const signalCount = (db.prepare('SELECT COUNT(*) as count FROM source_signals').get() as { count: number }).count;
+  if (signalCount === 0) {
+    const insertSignal = db.prepare(`
+      INSERT INTO source_signals (
+        id, company_name, company_domain, signal_category, source_id, source_url,
+        event_timestamp, observed_at, signal_text, structured_evidence,
+        confidence, relevance_score, dedup_fingerprint
+      ) VALUES (?, ?, ?, ?, ?, ?, datetime('now', '-2 days'), datetime('now'), ?, ?, ?, ?, ?)
+    `);
+
+    const initialSignals = [
+      {
+        id: 'sig-1',
+        companyName: 'CloudScale Nexus',
+        companyDomain: 'cloudscale.io',
+        category: 'hiring',
+        sourceId: 'job_board_signals',
+        sourceUrl: 'https://careers.cloudscale.io/postings/revops-lead',
+        signalText: 'Hiring 8 Account Executives and VP Revenue Operations for Outbound Expansion',
+        evidence: { headcountTarget: 8, roles: ['Account Executive', 'VP RevOps'], department: 'Sales' },
+        confidence: 0.96,
+        relevanceScore: 95,
+        fingerprint: 'cloudscale.io:hiring:revops-8-ae',
+      },
+      {
+        id: 'sig-2',
+        companyName: 'CloudScale Nexus',
+        companyDomain: 'cloudscale.io',
+        category: 'funding',
+        sourceId: 'demo_adaptive_source',
+        sourceUrl: 'https://techcrunch.com/cloudscale-series-b-28m',
+        signalText: 'Announced $28M Series B round led by Sequoia Capital for Enterprise AI Growth',
+        evidence: { round: 'Series B', amount: 28000000, currency: 'USD', leadInvestor: 'Sequoia Capital' },
+        confidence: 0.98,
+        relevanceScore: 96,
+        fingerprint: 'cloudscale.io:funding:series-b-28m',
+      },
+      {
+        id: 'sig-3',
+        companyName: 'Apex Data Labs',
+        companyDomain: 'apexdata.ai',
+        category: 'expansion',
+        sourceId: 'demo_adaptive_source',
+        sourceUrl: 'https://apexdata.ai/news/emea-expansion',
+        signalText: 'Opening EMEA headquarters in London to support international enterprise demand',
+        evidence: { targetRegion: 'EMEA', city: 'London', entityType: 'Regional HQ' },
+        confidence: 0.91,
+        relevanceScore: 88,
+        fingerprint: 'apexdata.ai:expansion:emea-london',
+      },
+      {
+        id: 'sig-4',
+        companyName: 'Apex Data Labs',
+        companyDomain: 'apexdata.ai',
+        category: 'technology',
+        sourceId: 'tech_stack_signals',
+        sourceUrl: 'https://apexdata.ai/engineering/stack-snowflake',
+        signalText: 'Migrated primary analytics warehouse to Snowflake and deployed Segment tracking',
+        evidence: { technologiesAdded: ['Snowflake', 'Segment', 'HubSpot'], previousStack: 'Redshift' },
+        confidence: 0.94,
+        relevanceScore: 92,
+        fingerprint: 'apexdata.ai:technology:snowflake-migration',
+      },
+      {
+        id: 'sig-5',
+        companyName: 'FinSphere Payments',
+        companyDomain: 'finsphere.co',
+        category: 'hiring',
+        sourceId: 'job_board_signals',
+        sourceUrl: 'https://finsphere.co/jobs/head-of-revops',
+        signalText: 'CEO announced active executive search for Head of RevOps and Outbound SDR Lead',
+        evidence: { executiveSearch: true, targetRole: 'Head of RevOps', urgency: 'Immediate' },
+        confidence: 0.93,
+        relevanceScore: 91,
+        fingerprint: 'finsphere.co:hiring:head-of-revops',
+      },
+      {
+        id: 'sig-6',
+        companyName: 'FinSphere Payments',
+        companyDomain: 'finsphere.co',
+        category: 'expansion',
+        sourceId: 'demo_adaptive_source',
+        sourceUrl: 'https://finsphere.co/press/global-settlement',
+        signalText: 'Launched multi-currency cross-border settlement infrastructure for enterprise B2B',
+        evidence: { feature: 'Cross-Border Settlements', markets: ['US', 'EU', 'APAC'] },
+        confidence: 0.90,
+        relevanceScore: 87,
+        fingerprint: 'finsphere.co:expansion:cross-border',
+      },
+      {
+        id: 'sig-7',
+        companyName: 'Veloce Robotics',
+        companyDomain: 'veloce-robotics.tech',
+        category: 'funding',
+        sourceId: 'demo_adaptive_source',
+        sourceUrl: 'https://roboticsinsider.com/veloce-series-a',
+        signalText: 'Closed $15M Series A funding round for warehouse automation hardware',
+        evidence: { round: 'Series A', amount: 15000000, currency: 'USD' },
+        confidence: 0.92,
+        relevanceScore: 84,
+        fingerprint: 'veloce-robotics.tech:funding:series-a-15m',
+      },
+      {
+        id: 'sig-8',
+        companyName: 'Krypton Security',
+        companyDomain: 'kryptonsec.com',
+        category: 'hiring',
+        sourceId: 'job_board_signals',
+        sourceUrl: 'https://kryptonsec.com/careers/sales-engineers',
+        signalText: 'Scaling Enterprise Outbound: Hiring 4 Sales Engineers and 2 Outbound SDRs',
+        evidence: { department: 'Sales Engineering', headcount: 6 },
+        confidence: 0.89,
+        relevanceScore: 82,
+        fingerprint: 'kryptonsec.com:hiring:sales-engineers-6',
+      },
+      {
+        id: 'sig-9',
+        companyName: 'Krypton Security',
+        companyDomain: 'kryptonsec.com',
+        category: 'technology',
+        sourceId: 'tech_stack_signals',
+        sourceUrl: 'https://kryptonsec.com/trust/soc2',
+        signalText: 'Completed SOC2 Type II compliance renewal and deployed AWS Security Hub',
+        evidence: { compliance: 'SOC2 Type II', cloud: 'AWS Security Hub' },
+        confidence: 0.95,
+        relevanceScore: 80,
+        fingerprint: 'kryptonsec.com:technology:soc2-aws',
+      },
+    ];
+
+    const insertSignalsTx = db.transaction((signals) => {
+      for (const sig of signals) {
+        insertSignal.run(
+          sig.id,
+          sig.companyName,
+          sig.companyDomain,
+          sig.category,
+          sig.sourceId,
+          sig.sourceUrl,
+          sig.signalText,
+          JSON.stringify(sig.evidence),
+          sig.confidence,
+          sig.relevanceScore,
+          sig.fingerprint
+        );
+      }
+    });
+
+    insertSignalsTx(initialSignals);
+  }
+
+  // Phase 6A: Seed default source attributions for initial leads if empty
+  const attrCount = (db.prepare('SELECT COUNT(*) as count FROM source_attributions').get() as { count: number }).count;
+  if (attrCount === 0) {
+    const insertAttr = db.prepare(`
+      INSERT INTO source_attributions (
+        id, lead_id, candidate_id, source_id, role, confidence
+      ) VALUES (?, ?, NULL, ?, ?, ?)
+    `);
+
+    const initialAttributions = [
+      { id: 'attr-1', leadId: 'lead-1', sourceId: 'demo_adaptive_source', role: 'discovery', confidence: 0.95 },
+      { id: 'attr-2', leadId: 'lead-1', sourceId: 'job_board_signals', role: 'signal', confidence: 0.96 },
+      { id: 'attr-3', leadId: 'lead-1', sourceId: 'hunter', role: 'contact_resolution', confidence: 0.98 },
+      { id: 'attr-4', leadId: 'lead-2', sourceId: 'demo_adaptive_source', role: 'discovery', confidence: 0.92 },
+      { id: 'attr-5', leadId: 'lead-2', sourceId: 'tech_stack_signals', role: 'signal', confidence: 0.94 },
+      { id: 'attr-6', leadId: 'lead-2', sourceId: 'hunter', role: 'contact_resolution', confidence: 0.97 },
+      { id: 'attr-7', leadId: 'lead-3', sourceId: 'job_board_signals', role: 'signal', confidence: 0.91 },
+      { id: 'attr-8', leadId: 'lead-3', sourceId: 'demo_adaptive_source', role: 'discovery', confidence: 0.90 },
+      { id: 'attr-9', leadId: 'lead-4', sourceId: 'demo_adaptive_source', role: 'discovery', confidence: 0.88 },
+      { id: 'attr-10', leadId: 'lead-5', sourceId: 'first_party_crm', role: 'discovery', confidence: 1.00 },
+      { id: 'attr-11', leadId: 'lead-6', sourceId: 'job_board_signals', role: 'signal', confidence: 0.85 },
+      { id: 'attr-12', leadId: 'lead-6', sourceId: 'hunter', role: 'contact_resolution', confidence: 0.90 },
+    ];
+
+    const insertAttrTx = db.transaction((attrs) => {
+      for (const a of attrs) {
+        insertAttr.run(a.id, a.leadId, a.sourceId, a.role, a.confidence);
+      }
+    });
+
+    insertAttrTx(initialAttributions);
+  }
+
+  // Phase 6B: Seed default sourcing optimization weights if empty
+  const sowCount = (db.prepare('SELECT COUNT(*) as count FROM sourcing_optimization_weights').get() as { count: number }).count;
+  if (sowCount === 0) {
+    const insertSow = db.prepare(`
+      INSERT INTO sourcing_optimization_weights (
+        id, source_id, empirical_yield_rate, empirical_duplicate_rate, empirical_reply_rate, empirical_meeting_rate,
+        quality_multiplier, learned_cost_efficiency, total_leads_attributed, total_meetings_attributed, total_pipeline_attributed
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const initialWeights = [
+      { id: 'sow-first_party_crm', sourceId: 'first_party_crm', yieldRate: 0.88, dupRate: 0.02, replyRate: 0.18, meetingRate: 0.08, quality: 1.25, costEff: 1.50, leads: 1, meetings: 1, pipeline: 45000 },
+      { id: 'sow-demo_adaptive_source', sourceId: 'demo_adaptive_source', yieldRate: 0.80, dupRate: 0.05, replyRate: 0.14, meetingRate: 0.06, quality: 1.15, costEff: 1.30, leads: 4, meetings: 2, pipeline: 90000 },
+      { id: 'sow-job_board_signals', sourceId: 'job_board_signals', yieldRate: 0.74, dupRate: 0.08, replyRate: 0.12, meetingRate: 0.05, quality: 1.10, costEff: 1.15, leads: 3, meetings: 1, pipeline: 35000 },
+      { id: 'sow-tech_stack_signals', sourceId: 'tech_stack_signals', yieldRate: 0.69, dupRate: 0.12, replyRate: 0.10, meetingRate: 0.04, quality: 1.05, costEff: 1.00, leads: 1, meetings: 0, pipeline: 0 },
+      { id: 'sow-hunter', sourceId: 'hunter', yieldRate: 0.84, dupRate: 0.06, replyRate: 0.15, meetingRate: 0.07, quality: 1.20, costEff: 1.10, leads: 3, meetings: 2, pipeline: 75000 },
+    ];
+
+    const insertSowTx = db.transaction((weights) => {
+      for (const w of weights) {
+        insertSow.run(
+          w.id, w.sourceId, w.yieldRate, w.dupRate, w.replyRate, w.meetingRate,
+          w.quality, w.costEff, w.leads, w.meetings, w.pipeline
+        );
+      }
+    });
+
+    insertSowTx(initialWeights);
+  }
+
+  // Phase 6B: Seed initial experiment comparison baseline if empty
+  const expCount = (db.prepare('SELECT COUNT(*) as count FROM sourcing_experiments').get() as { count: number }).count;
+  if (expCount === 0) {
+    db.prepare(`
+      INSERT INTO sourcing_experiments (
+        id, name, description, status, baseline_strategy, agentic_strategy,
+        sample_size, baseline_metrics, agentic_metrics, uplift_summary, concluded_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    `).run(
+      'exp-baseline-001',
+      'Phase 6A Static Planner vs Phase 6B Agentic Orchestration',
+      'Benchmark comparing static deterministic sourcing with adaptive signal-first agentic orchestration over 500 prospect evaluations.',
+      'completed',
+      'deterministic_phase6a',
+      'adaptive_agentic_phase6b',
+      500,
+      JSON.stringify({
+        yieldCount: 168,
+        yieldRatePct: 33.6,
+        totalCost: 19.40,
+        unitCost: 0.115,
+        efficiencyPct: 66.4,
+        durationMs: 1420,
+        meetingRatePct: 4.8,
+      }),
+      JSON.stringify({
+        yieldCount: 242,
+        yieldRatePct: 48.4,
+        totalCost: 13.80,
+        unitCost: 0.057,
+        efficiencyPct: 83.2,
+        durationMs: 890,
+        meetingRatePct: 7.2,
+      }),
+      JSON.stringify({
+        yieldUpliftPct: 44.0,
+        costReductionPct: 50.4,
+        efficiencyGainPct: 25.3,
+        netRoiImprovement: '+50% Cost Efficiency, +44% Qualified Yield',
+      })
+    );
+  }
 }
+
 

@@ -16,6 +16,25 @@ import type {
   DiscoveryJob,
   DiscoveredCandidate,
   IngestBatchResult,
+  OutreachCampaign,
+  OutreachSequence,
+  OutreachMessage,
+  EngagementEvent,
+  SuppressionItem,
+  CrmSyncRecord,
+  OpportunityScore,
+  OutreachAnalytics,
+  CrmStatus,
+  SourceRegistryItem,
+  SourceSignal,
+  SourcingPlan,
+  SourcingJob,
+  SourceIntelligenceAnalytics,
+  AgenticSourcingRun,
+  ParsedCampaignIntent,
+  SourcingOptimizationWeight,
+  SourcingExperiment,
+  AgenticSourcingStatus,
 } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
@@ -421,5 +440,349 @@ export const api = {
       body: JSON.stringify({ candidateIds }),
     });
   },
+
+  // Phase 5: Outreach Campaigns
+  async getOutreachCampaigns(): Promise<OutreachCampaign[]> {
+    return request<OutreachCampaign[]>('/api/outreach/campaigns');
+  },
+
+  async getOutreachCampaign(id: string): Promise<OutreachCampaign> {
+    return request<OutreachCampaign>(`/api/outreach/campaigns/${encodeURIComponent(id)}`);
+  },
+
+  async createOutreachCampaign(data: Partial<OutreachCampaign>): Promise<OutreachCampaign> {
+    return request<OutreachCampaign>('/api/outreach/campaigns', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateOutreachCampaign(id: string, data: Partial<OutreachCampaign>): Promise<OutreachCampaign> {
+    return request<OutreachCampaign>(`/api/outreach/campaigns/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteOutreachCampaign(id: string): Promise<void> {
+    await request<void>(`/api/outreach/campaigns/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Phase 5: Outreach Sequences & Messages
+  async getOutreachSequences(filters?: { campaignId?: string; leadId?: string; status?: string }): Promise<OutreachSequence[]> {
+    const params = new URLSearchParams();
+    if (filters?.campaignId) params.set('campaignId', filters.campaignId);
+    if (filters?.leadId) params.set('leadId', filters.leadId);
+    if (filters?.status) params.set('status', filters.status);
+    const qs = params.toString();
+    return request<OutreachSequence[]>(`/api/outreach/sequences${qs ? `?${qs}` : ''}`);
+  },
+
+  async getOutreachSequence(id: string): Promise<OutreachSequence> {
+    return request<OutreachSequence>(`/api/outreach/sequences/${encodeURIComponent(id)}`);
+  },
+
+  async createOutreachSequence(data: {
+    leadId: string;
+    campaignId?: string;
+    generateDrafts?: boolean;
+    customInstructions?: string;
+  }): Promise<OutreachSequence> {
+    return request<OutreachSequence>('/api/outreach/sequences', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async approveOutreachSequence(id: string, approvedBy?: string): Promise<OutreachSequence> {
+    return request<OutreachSequence>(`/api/outreach/sequences/${encodeURIComponent(id)}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ approvedBy: approvedBy || 'sales_operator' }),
+    });
+  },
+
+  async pauseOutreachSequence(id: string): Promise<OutreachSequence> {
+    return request<OutreachSequence>(`/api/outreach/sequences/${encodeURIComponent(id)}/pause`, {
+      method: 'POST',
+    });
+  },
+
+  async resumeOutreachSequence(id: string): Promise<OutreachSequence> {
+    return request<OutreachSequence>(`/api/outreach/sequences/${encodeURIComponent(id)}/resume`, {
+      method: 'POST',
+    });
+  },
+
+  async cancelOutreachSequence(id: string, reason?: string): Promise<OutreachSequence> {
+    return request<OutreachSequence>(`/api/outreach/sequences/${encodeURIComponent(id)}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason || 'User cancelled' }),
+    });
+  },
+
+  async sendOutreachSequenceNow(id: string): Promise<{ data: OutreachSequence; messageId?: string }> {
+    return request<{ data: OutreachSequence; messageId?: string }>(
+      `/api/outreach/sequences/${encodeURIComponent(id)}/send-now`,
+      {
+        method: 'POST',
+      }
+    );
+  },
+
+  async updateOutreachMessage(
+    sequenceId: string,
+    step: number,
+    data: { subject?: string; bodyHtml?: string; bodyText?: string }
+  ): Promise<OutreachMessage> {
+    return request<OutreachMessage>(
+      `/api/outreach/sequences/${encodeURIComponent(sequenceId)}/messages/${step}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  async generateOutreachDraft(
+    leadId: string,
+    customInstructions?: string
+  ): Promise<{ steps: OutreachMessage[]; evidenceUsed: any[]; generationMode: string }> {
+    return request<{ steps: OutreachMessage[]; evidenceUsed: any[]; generationMode: string }>(
+      '/api/outreach/generate',
+      {
+        method: 'POST',
+        body: JSON.stringify({ leadId, customInstructions }),
+      }
+    );
+  },
+
+  // Phase 5: Engagement Events & Suppression
+  async recordEngagementEvent(data: {
+    leadId: string;
+    sequenceId?: string;
+    messageId?: string;
+    campaignId?: string;
+    eventType: string;
+    providerEventId?: string;
+    sourceMetadata?: Record<string, any>;
+  }): Promise<{ data: EngagementEvent; isDuplicate: boolean }> {
+    return request<{ data: EngagementEvent; isDuplicate: boolean }>('/api/outreach/events', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getSuppressionList(): Promise<SuppressionItem[]> {
+    return request<SuppressionItem[]>('/api/outreach/suppression');
+  },
+
+  async addSuppressionItem(data: { email: string; reason?: string; source?: string }): Promise<SuppressionItem> {
+    return request<SuppressionItem>('/api/outreach/suppression', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async removeSuppressionItem(id: string): Promise<void> {
+    await request<void>(`/api/outreach/suppression/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Phase 5: Outreach Analytics
+  async getOutreachAnalytics(): Promise<OutreachAnalytics> {
+    return request<OutreachAnalytics>('/api/outreach/analytics');
+  },
+
+  // Phase 5: CRM Operations & Opportunity Scoring
+  async getCrmStatus(): Promise<CrmStatus> {
+    return request<CrmStatus>('/api/crm/status');
+  },
+
+  async syncLeadToCrm(leadId: string): Promise<CrmSyncRecord> {
+    return request<CrmSyncRecord>(`/api/crm/sync/${encodeURIComponent(leadId)}`, {
+      method: 'POST',
+    });
+  },
+
+  async getLeadCrmRecords(leadId: string): Promise<CrmSyncRecord[]> {
+    return request<CrmSyncRecord[]>(`/api/crm/leads/${encodeURIComponent(leadId)}/records`);
+  },
+
+  async getOpportunityScore(leadId: string): Promise<OpportunityScore> {
+    return request<OpportunityScore>(`/api/opportunities/${encodeURIComponent(leadId)}/score`);
+  },
+
+  // ==========================================
+  // Phase 6A: Adaptive Source Intelligence
+  // ==========================================
+
+  async getSourceIntelligenceStatus(): Promise<{
+    enabled: boolean;
+    sourcesCount: number;
+    signalsCount: number;
+    plansCount: number;
+    message: string;
+  }> {
+    return request<{
+      enabled: boolean;
+      sourcesCount: number;
+      signalsCount: number;
+      plansCount: number;
+      message: string;
+    }>('/api/source-intelligence/status');
+  },
+
+  async getSourceRegistry(): Promise<SourceRegistryItem[]> {
+    return request<SourceRegistryItem[]>('/api/source-intelligence/sources');
+  },
+
+  async toggleSource(id: string, isEnabled: boolean): Promise<SourceRegistryItem> {
+    return request<SourceRegistryItem>(`/api/source-intelligence/sources/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isEnabled }),
+    });
+  },
+
+  async checkSourceHealth(id?: string): Promise<any> {
+    return request<any>('/api/source-intelligence/sources/health', {
+      method: 'POST',
+      body: JSON.stringify(id ? { id } : {}),
+    });
+  },
+
+  async getSourceSignals(params?: { category?: string; domain?: string }): Promise<SourceSignal[]> {
+    const query = new URLSearchParams();
+    if (params?.category) query.append('category', params.category);
+    if (params?.domain) query.append('domain', params.domain);
+    const qs = query.toString();
+    return request<SourceSignal[]>(`/api/source-intelligence/signals${qs ? `?${qs}` : ''}`);
+  },
+
+  async createSourceSignal(signal: {
+    companyName: string;
+    companyDomain: string;
+    signalCategory: string;
+    sourceId: string;
+    signalText: string;
+    structuredEvidence?: Record<string, any>;
+    confidence?: number;
+    relevanceScore?: number;
+  }): Promise<SourceSignal> {
+    return request<SourceSignal>('/api/source-intelligence/signals', {
+      method: 'POST',
+      body: JSON.stringify(signal),
+    });
+  },
+
+  async previewSourcingPlan(input: {
+    name: string;
+    targetIcpId?: string;
+    campaignObjective: string;
+    constraints?: any;
+  }): Promise<SourcingPlan> {
+    return request<SourcingPlan>('/api/source-intelligence/plans/preview', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async saveSourcingPlan(plan: SourcingPlan): Promise<SourcingPlan> {
+    return request<SourcingPlan>('/api/source-intelligence/plans', {
+      method: 'POST',
+      body: JSON.stringify(plan),
+    });
+  },
+
+  async getSourcingPlans(): Promise<SourcingPlan[]> {
+    return request<SourcingPlan[]>('/api/source-intelligence/plans');
+  },
+
+  async getSourcingPlan(id: string): Promise<SourcingPlan> {
+    return request<SourcingPlan>(`/api/source-intelligence/plans/${encodeURIComponent(id)}`);
+  },
+
+  async executeSourcingPlan(id: string): Promise<SourcingJob> {
+    return request<SourcingJob>(`/api/source-intelligence/plans/${encodeURIComponent(id)}/execute`, {
+      method: 'POST',
+    });
+  },
+
+  async getSourcingJob(id: string): Promise<SourcingJob> {
+    return request<SourcingJob>(`/api/source-intelligence/jobs/${encodeURIComponent(id)}`);
+  },
+
+  async getSourceIntelligenceAnalytics(): Promise<SourceIntelligenceAnalytics> {
+    return request<SourceIntelligenceAnalytics>('/api/source-intelligence/analytics');
+  },
+
+  // Phase 6B: Agentic Orchestration & Self-Optimizing Sourcing
+  async getAgenticSourcingStatus(): Promise<AgenticSourcingStatus> {
+    return request<AgenticSourcingStatus>('/api/agentic-sourcing/status');
+  },
+
+  async parseCampaignIntent(data: { rawIntent: string; icpProfileId?: string }): Promise<ParsedCampaignIntent> {
+    return request<ParsedCampaignIntent>('/api/agentic-sourcing/intent/parse', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async createAgenticRun(data: {
+    campaignIntent: string;
+    icpProfileId?: string;
+    maxBudgetCredits?: number;
+    name?: string;
+    targetYield?: number;
+  }): Promise<AgenticSourcingRun> {
+    return request<AgenticSourcingRun>('/api/agentic-sourcing/runs', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getAgenticRuns(): Promise<AgenticSourcingRun[]> {
+    return request<AgenticSourcingRun[]>('/api/agentic-sourcing/runs');
+  },
+
+  async getAgenticRun(id: string): Promise<AgenticSourcingRun> {
+    return request<AgenticSourcingRun>(`/api/agentic-sourcing/runs/${encodeURIComponent(id)}`);
+  },
+
+  async executeAgenticRun(id: string): Promise<AgenticSourcingRun> {
+    return request<AgenticSourcingRun>(`/api/agentic-sourcing/runs/${encodeURIComponent(id)}/execute`, {
+      method: 'POST',
+    });
+  },
+
+  async cancelAgenticRun(id: string): Promise<AgenticSourcingRun> {
+    return request<AgenticSourcingRun>(`/api/agentic-sourcing/runs/${encodeURIComponent(id)}/cancel`, {
+      method: 'POST',
+    });
+  },
+
+  async getSourcingOptimizationWeights(): Promise<SourcingOptimizationWeight[]> {
+    return request<SourcingOptimizationWeight[]>('/api/agentic-sourcing/optimization/weights');
+  },
+
+  async recomputeOptimizationWeights(): Promise<SourcingOptimizationWeight[]> {
+    return request<SourcingOptimizationWeight[]>('/api/agentic-sourcing/optimization/recompute', {
+      method: 'POST',
+    });
+  },
+
+  async runSourcingExperiment(data?: { sampleSize?: number }): Promise<SourcingExperiment> {
+    return request<SourcingExperiment>('/api/agentic-sourcing/experiments/run', {
+      method: 'POST',
+      body: JSON.stringify(data || {}),
+    });
+  },
+
+  async getSourcingExperiments(): Promise<SourcingExperiment[]> {
+    return request<SourcingExperiment[]>('/api/agentic-sourcing/experiments');
+  },
 };
+
 

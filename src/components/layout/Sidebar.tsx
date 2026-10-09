@@ -11,6 +11,7 @@ import {
   X,
   Flame,
   Compass,
+  Send,
 } from 'lucide-react';
 import type { ViewType, IcpProfile } from '../../types';
 
@@ -46,6 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'discovery', label: 'Discovery Engine', icon: Compass, badge: 'New' },
     { id: 'leads', label: 'Leads', icon: Users, badge: `${leadsCount}` },
     { id: 'pipeline', label: 'Pipeline', icon: Kanban, badge: formattedPipeline },
+    { id: 'outreach', label: 'Outreach & CRM', icon: Send, badge: 'Phase 5' },
     { id: 'knowledge', label: 'Knowledge Base', icon: BookOpen, badge: `${docsCount} docs` },
   ];
 

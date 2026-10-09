@@ -8,8 +8,10 @@ import type {
 import { api, ApiError } from '../../services/api';
 import { CandidateProvenanceModal } from './CandidateProvenanceModal';
 import { BulkIngestModal } from './BulkIngestModal';
+import { SourceIntelligenceWorkspace } from './SourceIntelligenceWorkspace';
 import {
   Compass,
+  Cpu,
   Search,
   Building,
   CheckCircle2,
@@ -45,6 +47,9 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
   onCandidatesIngested,
   onNavigateToLeads,
 }) => {
+  // Subsystem View Mode: Domain Search vs Adaptive Source Intelligence
+  const [discoveryModeTab, setDiscoveryModeTab] = useState<'domain_search' | 'source_intelligence'>('domain_search');
+
   // Provider and Mode Configuration
   const [providers, setProviders] = useState<DiscoveryProviderStatus[]>([]);
   const [selectedProviderId, setSelectedProviderId] = useState<string>('mock');
@@ -507,10 +512,43 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
         </div>
       </div>
 
-      {/* Provider Selector Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Hunter.io Live Card */}
-        <div
+      {/* Discovery Subsystem Switcher */}
+      <div className="flex flex-wrap border-b border-slate-800 gap-2 pb-2">
+        <button
+          onClick={() => setDiscoveryModeTab('domain_search')}
+          className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
+            discoveryModeTab === 'domain_search'
+              ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+              : 'bg-slate-900/60 text-slate-400 hover:text-white hover:bg-slate-800'
+          }`}
+        >
+          <Compass className="w-4 h-4" />
+          Domain & Contact Search (Hunter.io)
+        </button>
+        <button
+          onClick={() => setDiscoveryModeTab('source_intelligence')}
+          className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
+            discoveryModeTab === 'source_intelligence'
+              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-purple-600/30'
+              : 'bg-slate-900/60 text-slate-400 hover:text-white hover:bg-slate-800'
+          }`}
+        >
+          <Cpu className="w-4 h-4" />
+          Adaptive Source Intelligence (Phase 6A)
+          <span className="px-1.5 py-0.5 rounded text-[10px] bg-purple-500/20 text-purple-300 font-mono">
+            New
+          </span>
+        </button>
+      </div>
+
+      {discoveryModeTab === 'source_intelligence' ? (
+        <SourceIntelligenceWorkspace onPlanExecuted={loadCandidates} />
+      ) : (
+        <>
+          {/* Provider Selector Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Hunter.io Live Card */}
+            <div
           onClick={() => setSelectedProviderId('hunter')}
           className={`cursor-pointer rounded-2xl border p-4 transition-all relative overflow-hidden ${
             selectedProviderId === 'hunter'
@@ -1357,6 +1395,8 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
           </table>
         </div>
       </div>
+      </>
+    )}
 
       {/* Field-Level Provenance Inspector Modal */}
       {inspectingCandidate && (

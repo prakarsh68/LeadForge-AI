@@ -56,6 +56,9 @@ export async function createTestContext(): Promise<TestContext> {
   };
 
   const cleanup = async (): Promise<void> => {
+    if (typeof (server as any).closeAllConnections === 'function') {
+      (server as any).closeAllConnections();
+    }
     await new Promise<void>((resolve, reject) => {
       server.close((err) => (err ? reject(err) : resolve()));
     });

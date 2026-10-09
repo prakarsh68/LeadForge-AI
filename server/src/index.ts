@@ -11,6 +11,7 @@ import { createApp } from './app.js';
 import { initializeDatabase } from './db/init.js';
 import { closeDb, getDatabasePath } from './db/database.js';
 import { discoveryQueueService } from './services/discoveryQueueService.js';
+import { sequenceQueueService } from './services/outreach/sequenceQueueService.js';
 
 const PORT = parseInt(process.env.PORT || '5000', 10);
 
@@ -26,6 +27,10 @@ async function startServer(): Promise<void> {
     discoveryQueueService.startWorker(2000);
     console.log('[LeadForge Server] Background discovery worker started.');
 
+    // Start background sequence execution worker
+    sequenceQueueService.startWorker(3000);
+    console.log('[LeadForge Server] Background outreach sequence worker started.');
+
     const app = createApp();
 
     const server = app.listen(PORT, () => {
@@ -37,6 +42,7 @@ async function startServer(): Promise<void> {
     const handleShutdown = (signal: string) => {
       console.log(`\n[LeadForge Server] Received ${signal}. Shutting down gracefully...`);
       discoveryQueueService.stopWorker();
+      sequenceQueueService.stopWorker();
       server.close(() => {
         closeDb();
         console.log('[LeadForge Server] Database connection closed. Server terminated.');

@@ -46,6 +46,10 @@ const VIEW_TITLES: Record<ViewType, { title: string; subtitle: string }> = {
     title: 'Knowledge Base & Context Hub',
     subtitle: 'Sales collateral, pricing sheets, and battlecards powering autonomous personalization',
   },
+  outreach: {
+    title: 'Outreach & CRM Engagement',
+    subtitle: 'Automated 3-step personalized sequences, execution safety controls, and CRM synchronization',
+  },
 };
 
 export const Navbar: React.FC<NavbarProps> = ({

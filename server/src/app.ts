@@ -7,6 +7,10 @@ import { opportunitiesRouter } from './routes/opportunities.js';
 import { activitiesRouter } from './routes/activities.js';
 import { knowledgeRouter } from './routes/knowledge.js';
 import { discoveryRouter } from './routes/discovery.js';
+import { outreachRouter } from './routes/outreach.js';
+import { crmRouter } from './routes/crm.js';
+import { sourceIntelligenceRouter } from './routes/sourceIntelligence.js';
+import { agenticSourcingRouter } from './routes/agenticSourcing.js';
 import { notFoundHandler } from './middleware/notFoundHandler.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
@@ -46,6 +50,10 @@ export function createApp(): Application {
   app.use('/api', activitiesRouter);
   app.use('/api', knowledgeRouter);
   app.use('/api', discoveryRouter);
+  app.use('/api', outreachRouter);
+  app.use('/api', crmRouter);
+  app.use('/api', sourceIntelligenceRouter);
+  app.use('/api', agenticSourcingRouter);
 
   // Catch-all 404 Handler
   app.use(notFoundHandler);
