@@ -19,6 +19,7 @@ import { leadService } from './leadService.js';
 import { leadScoringService } from './leadScoringService.js';
 import { icpService } from './icpService.js';
 import { activityService } from './activityService.js';
+import { dataQualityService } from './dataQualityService.js';
 
 export interface StartDiscoveryJobInput {
   provider?: string;
@@ -315,14 +316,42 @@ export const discoveryService = {
       throw new Error('This candidate has already been ingested into the CRM.');
     }
 
+    // Identity revalidation at ingestion time: prevent duplicate contacts if added after discovery
+    if (candidate.email) {
+      const normEmail = dataQualityService.normalizeEmail(candidate.email);
+      if (normEmail) {
+        const existingLead = db
+          .prepare('SELECT id, name, company FROM leads WHERE LOWER(TRIM(email)) = ?')
+          .get(normEmail) as { id: string; name: string; company: string } | undefined;
+
+        if (existingLead) {
+          db.prepare(`
+            UPDATE discovered_candidates
+            SET dedup_status = 'existing_lead',
+                existing_lead_id = ?
+            WHERE id = ?
+          `).run(existingLead.id, candidateId);
+
+          throw new Error(
+            `Contact email "${candidate.email}" already exists in CRM (linked to lead "${existingLead.id}"). Ingestion skipped.`
+          );
+        }
+      }
+    }
+
+    const normDomain = dataQualityService.normalizeDomain(candidate.companyDomain);
+    const normCompany = dataQualityService.normalizeCompany(candidate.companyName);
+    const normTitle = dataQualityService.normalizeTitle(candidate.title);
+    const normEmail = dataQualityService.normalizeEmail(candidate.email);
+
     const ingestTx = db.transaction(() => {
-      // 1. Create official lead record
+      // 1. Create official lead record with clean normalized values
       const createdLead = leadService.create({
-        name: candidate.contactName,
-        title: candidate.title,
-        company: candidate.companyName,
-        companyDomain: candidate.companyDomain,
-        email: candidate.email || `contact@${candidate.companyDomain}`,
+        name: candidate.contactName.trim(),
+        title: normTitle,
+        company: normCompany,
+        companyDomain: normDomain,
+        email: normEmail || `contact@${normDomain}`,
         linkedin: candidate.linkedin || undefined,
         location: candidate.location || undefined,
         industry: candidate.industry || 'Enterprise Software & Cloud',
@@ -333,10 +362,10 @@ export const discoveryService = {
           `Discovered via ${candidate.provider.toUpperCase()} (${candidate.mode} mode)`,
           candidate.sourceUrls[0] ? `Source citation: ${candidate.sourceUrls[0]}` : 'Domain-level public directory',
         ],
-        notes: `Discovered from ${candidate.companyDomain} on ${new Date().toISOString().slice(0, 10)}. Email verification: ${candidate.emailVerification}.`,
+        notes: `Discovered from ${normDomain} on ${new Date().toISOString().slice(0, 10)}. Email verification: ${candidate.emailVerification}.`,
       });
 
-      // 2. Attach provenance and source attribution to the new lead
+      // 2. Attach provenance, verification status, and enriched timestamp to the new lead
       const primarySourceUrl = candidate.sourceUrls[0] || null;
       db.prepare(`
         UPDATE leads
@@ -344,7 +373,8 @@ export const discoveryService = {
             source_url = ?,
             email_verification_status = ?,
             enrichment_provenance = ?,
-            is_mock = ?
+            is_mock = ?,
+            enriched_at = datetime('now')
         WHERE id = ?
       `).run(
         candidate.provider,
@@ -421,10 +451,24 @@ export const discoveryService = {
           continue;
         }
 
+        if (candidate.dedupStatus === 'existing_lead') {
+          results.skipped.push({ candidateId: id, reason: 'Contact email already exists in CRM' });
+          continue;
+        }
+
+        if (candidate.dedupStatus === 'duplicate_in_job') {
+          results.skipped.push({ candidateId: id, reason: 'Duplicate contact within search run' });
+          continue;
+        }
+
         const { lead } = this.ingestCandidate(id);
         results.ingested.push({ lead, candidateId: id });
       } catch (err: any) {
-        results.failed.push({ candidateId: id, error: err.message || 'Unknown ingestion error' });
+        if (err.message && (err.message.includes('already exists in CRM') || err.message.includes('already been ingested'))) {
+          results.skipped.push({ candidateId: id, reason: err.message });
+        } else {
+          results.failed.push({ candidateId: id, error: err.message || 'Unknown ingestion error' });
+        }
       }
     }
 

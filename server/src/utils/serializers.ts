@@ -51,6 +51,10 @@ export function leadEntityToDto(entity: LeadEntity): LeadDTO {
     emailVerificationStatus: entity.email_verification_status || 'unverified',
     enrichmentProvenance: safeParseJson<any>(entity.enrichment_provenance, null),
     isMock: Boolean(entity.is_mock),
+    isQualificationStale: Boolean(entity.is_qualification_stale),
+    enrichedAt: entity.enriched_at || null,
+    lastQualificationError: entity.last_qualification_error || null,
+    conflictHistory: safeParseJson<any>(entity.conflict_history, []),
     createdAt: entity.created_at,
     updatedAt: entity.updated_at,
   };

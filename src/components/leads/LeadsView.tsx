@@ -518,7 +518,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
 
                       {/* AI Fit Score */}
                       <td className="py-3.5 px-4">
-                        <div className="inline-flex items-center gap-1.5">
+                        <div className="inline-flex items-center gap-1.5 flex-wrap">
                           <span
                             className={`rounded-md border px-2 py-0.5 text-xs font-black font-mono ${getScoreBadgeColor(
                               lead.score
@@ -527,6 +527,14 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                             {lead.score}
                           </span>
                           <span className="text-[10px] text-slate-400 font-medium">/ 100</span>
+                          {lead.isQualificationStale && (
+                            <span
+                              className="rounded px-1.5 py-0.5 text-[9px] font-bold border border-amber-500/40 bg-amber-500/10 text-amber-400"
+                              title="Lead criteria were modified after qualification. Re-qualify to update."
+                            >
+                              STALE
+                            </span>
+                          )}
                         </div>
                       </td>
 

@@ -156,6 +156,16 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                   <span className="rounded-md border border-slate-700 bg-slate-800 px-2 py-0.5 text-[11px] font-medium text-slate-300 uppercase tracking-wide">
                     {lead.tier} tier
                   </span>
+                  {lead.isQualificationStale && (
+                    <span className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold text-amber-300 flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" /> Stale (Criteria Changed)
+                    </span>
+                  )}
+                  {lead.lastQualificationError && (
+                    <span className="rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-0.5 text-[11px] font-bold text-rose-300 flex items-center gap-1">
+                      <XCircle className="h-3 w-3" /> Qualify Error
+                    </span>
+                  )}
                 </div>
                 <p className="text-sm font-medium text-slate-300 mt-0.5">{lead.title}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-400">
@@ -225,6 +235,27 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                   </span>
                 </div>
               </div>
+
+              {/* Staleness Notice Banner */}
+              {lead.isQualificationStale && (
+                <div className="rounded-xl border border-amber-500/40 bg-amber-950/40 p-3 text-xs text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+                    <span>
+                      <strong>Qualification Stale:</strong> Lead criteria (industry, title, company size, or triggers) were modified after this evaluation. Re-qualify to recalculate score.
+                    </span>
+                  </div>
+                  {onQualifyLead && (
+                    <button
+                      onClick={handleQualify}
+                      disabled={isQualifying}
+                      className="shrink-0 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-[11px] px-3 py-1.5 transition-colors disabled:opacity-50"
+                    >
+                      {isQualifying ? 'Re-scoring...' : 'Re-qualify Now'}
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Criterion-Level Scoring Cards */}
               <div className="space-y-2">
@@ -426,6 +457,52 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                     <span className="text-slate-500 italic text-[11px]">None recorded</span>
                   )}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Enrichment Conflict History (when conflicting data was recorded) */}
+          {lead.conflictHistory && lead.conflictHistory.length > 0 && (
+            <div className="rounded-xl border border-amber-500/30 bg-slate-950/60 p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+                  <AlertTriangle className="h-4 w-4 text-amber-400" />
+                  Recorded Enrichment Conflicts ({lead.conflictHistory.length})
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  Field-Level Precedence Applied
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                {lead.conflictHistory.map((c, idx) => (
+                  <div
+                    key={idx}
+                    className="rounded-lg border border-slate-800 bg-slate-900/60 p-2.5 text-xs text-slate-300"
+                  >
+                    <div className="flex items-center justify-between text-[11px] font-mono">
+                      <span className="text-indigo-300 font-semibold uppercase">{c.fieldName}</span>
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                          c.resolution === 'preserved_existing'
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                            : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                        }`}
+                      >
+                        {c.resolution === 'preserved_existing' ? 'Preserved Existing Data' : 'Overwritten by Higher Precedence'}
+                      </span>
+                    </div>
+                    <div className="mt-1.5 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                      <div>
+                        <span className="text-slate-500 block">Existing Value ({c.existingSource}):</span>
+                        <span className="font-semibold text-slate-200">{String(c.existingValue)}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block">Conflicting Value ({c.conflictingSource}):</span>
+                        <span className="text-slate-400 line-through">{String(c.conflictingValue)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}

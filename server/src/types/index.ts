@@ -28,8 +28,24 @@ export interface LeadEntity {
   email_verification_status?: VerificationStatus;
   enrichment_provenance?: string | null;
   is_mock?: number;
+  is_qualification_stale?: number;
+  enriched_at?: string | null;
+  last_qualification_error?: string | null;
+  conflict_history?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface FieldConflict {
+  fieldName: string;
+  existingValue: any;
+  existingSource: string;
+  existingStatus?: VerificationStatus;
+  conflictingValue: any;
+  conflictingSource: string;
+  conflictingStatus?: VerificationStatus;
+  recordedAt: string;
+  resolution: 'preserved_existing' | 'overwritten_by_higher_precedence';
 }
 
 export type VerificationStatus = 'verified' | 'unverified' | 'inferred' | 'risky' | 'undeliverable';
@@ -270,6 +286,10 @@ export interface LeadDTO {
   emailVerificationStatus?: VerificationStatus;
   enrichmentProvenance?: Record<string, FieldProvenance> | null;
   isMock?: boolean;
+  isQualificationStale?: boolean;
+  enrichedAt?: string | null;
+  lastQualificationError?: string | null;
+  conflictHistory?: FieldConflict[];
   createdAt: string;
   updatedAt: string;
 }

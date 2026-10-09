@@ -29,8 +29,25 @@ export interface Lead {
   sourceUrl?: string | null;
   emailVerificationStatus?: VerificationStatus;
   isMock?: boolean;
+  isQualificationStale?: boolean;
+  enrichedAt?: string | null;
+  lastQualificationError?: string | null;
+  conflictHistory?: FieldConflict[];
+  enrichmentProvenance?: Record<string, FieldProvenance> | null;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface FieldConflict {
+  fieldName: string;
+  existingValue: any;
+  existingSource: string;
+  existingStatus?: VerificationStatus;
+  conflictingValue: any;
+  conflictingSource: string;
+  conflictingStatus?: VerificationStatus;
+  recordedAt: string;
+  resolution: 'preserved_existing' | 'overwritten_by_higher_precedence';
 }
 
 export type VerificationStatus = 'verified' | 'unverified' | 'inferred' | 'risky' | 'undeliverable';

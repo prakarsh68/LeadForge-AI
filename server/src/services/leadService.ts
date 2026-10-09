@@ -17,6 +17,7 @@ import {
 import { activityService } from './activityService.js';
 import { leadScoringService } from './leadScoringService.js';
 import { icpService } from './icpService.js';
+import { dataQualityService } from './dataQualityService.js';
 
 export interface LeadFilterOptions {
   search?: string;
@@ -338,6 +339,12 @@ export const leadService = {
       params.push(updates.lastActive);
     }
 
+    // Material criteria change detection: mark qualification stale if scoring-relevant fields changed
+    const criteriaChanged = dataQualityService.isScoringCriteriaChanged(existing, updates);
+    if (criteriaChanged) {
+      fieldsToUpdate.push('is_qualification_stale = 1');
+    }
+
     const updateTx = db.transaction(() => {
       params.push(id);
       db.prepare(`UPDATE leads SET ${fieldsToUpdate.join(', ')} WHERE id = ?`).run(...params);
@@ -413,19 +420,38 @@ export const leadService = {
 
     const activeIcp = icpService.getActive();
     if (!activeIcp) {
+      db.prepare(`
+        UPDATE leads
+        SET last_qualification_error = 'No active ICP profile found',
+            updated_at = datetime('now')
+        WHERE id = ?
+      `).run(id);
       throw new Error('No active ICP profile found. Please activate an ICP profile before qualifying leads.');
     }
 
-    const qualification = leadScoringService.evaluateLead(lead, activeIcp);
+    let qualification: QualificationResult;
+    try {
+      qualification = leadScoringService.evaluateLead(lead, activeIcp);
+    } catch (err: any) {
+      db.prepare(`
+        UPDATE leads
+        SET last_qualification_error = ?,
+            updated_at = datetime('now')
+        WHERE id = ?
+      `).run(err.message || 'Scoring engine evaluation failed', id);
+      throw err;
+    }
 
     const qualifyTx = db.transaction(() => {
-      // 1. Update lead score, tier, qualification_breakdown, qualified_at
+      // 1. Update lead score, tier, qualification_breakdown, qualified_at, reset stale flag and clear error
       db.prepare(`
         UPDATE leads
         SET score = ?,
             tier = ?,
             qualification_breakdown = ?,
             qualified_at = ?,
+            is_qualification_stale = 0,
+            last_qualification_error = NULL,
             updated_at = datetime('now')
         WHERE id = ?
       `).run(

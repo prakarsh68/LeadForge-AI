@@ -27,6 +27,10 @@ export function initializeDatabase(customDb?: Database.Database): void {
       last_active TEXT DEFAULT '',
       qualification_breakdown TEXT DEFAULT NULL,
       qualified_at TEXT DEFAULT NULL,
+      is_qualification_stale INTEGER NOT NULL DEFAULT 0,
+      enriched_at TEXT DEFAULT NULL,
+      last_qualification_error TEXT DEFAULT NULL,
+      conflict_history TEXT DEFAULT '[]',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -187,6 +191,20 @@ export function initializeDatabase(customDb?: Database.Database): void {
   if (!leadColNames.includes('is_mock')) {
     db.exec('ALTER TABLE leads ADD COLUMN is_mock INTEGER NOT NULL DEFAULT 0;');
   }
+  if (!leadColNames.includes('is_qualification_stale')) {
+    db.exec('ALTER TABLE leads ADD COLUMN is_qualification_stale INTEGER NOT NULL DEFAULT 0;');
+  }
+  if (!leadColNames.includes('enriched_at')) {
+    db.exec('ALTER TABLE leads ADD COLUMN enriched_at TEXT DEFAULT NULL;');
+  }
+  if (!leadColNames.includes('last_qualification_error')) {
+    db.exec('ALTER TABLE leads ADD COLUMN last_qualification_error TEXT DEFAULT NULL;');
+  }
+  if (!leadColNames.includes('conflict_history')) {
+    db.exec("ALTER TABLE leads ADD COLUMN conflict_history TEXT DEFAULT '[]';");
+  }
+
+  db.exec('CREATE INDEX IF NOT EXISTS idx_leads_stale ON leads(is_qualification_stale);');
 
   const icpColumns = db.prepare('PRAGMA table_info(icp_profiles)').all() as Array<{ name: string }>;
   const icpColNames = icpColumns.map((c) => c.name);
