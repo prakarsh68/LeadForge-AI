@@ -9,6 +9,7 @@ import {
   Zap,
   Kanban,
   CheckCircle2,
+  Trash2,
 } from 'lucide-react';
 
 interface LeadDetailModalProps {
@@ -17,6 +18,7 @@ interface LeadDetailModalProps {
   onMoveToPipeline?: (leadId: string) => void;
   onUpdateStatus?: (leadId: string, status: LeadStatus) => void;
   onUpdateNotes?: (leadId: string, notes: string) => void;
+  onDeleteLead?: (leadId: string) => void;
 }
 
 const ALL_STAGES: LeadStatus[] = [
@@ -34,6 +36,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   onMoveToPipeline,
   onUpdateStatus,
   onUpdateNotes,
+  onDeleteLead,
 }) => {
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesValue, setNotesValue] = useState(lead?.notes || '');
@@ -47,6 +50,13 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
     setEditingNotes(false);
     setSavedNotesToast(true);
     setTimeout(() => setSavedNotesToast(false), 2000);
+  };
+
+  const handleDelete = () => {
+    if (window.confirm(`Are you sure you want to delete lead "${lead.name}"? This action will remove associated pipeline records.`)) {
+      onDeleteLead?.(lead.id);
+      onClose();
+    }
   };
 
   return (
@@ -234,6 +244,15 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2 self-end sm:self-auto">
+            {onDeleteLead && (
+              <button
+                onClick={handleDelete}
+                className="inline-flex items-center gap-1 rounded-xl border border-rose-500/30 bg-rose-950/20 px-3 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-900/40 hover:text-rose-200 transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete
+              </button>
+            )}
             <button
               onClick={onClose}
               className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white"

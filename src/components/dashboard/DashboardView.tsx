@@ -3,7 +3,7 @@ import { KpiCard } from './KpiCard';
 import { DiscoveryChart } from './DiscoveryChart';
 import { TierDistributionChart } from './TierDistributionChart';
 import { RecentActivity } from './RecentActivity';
-import type { ViewType, Lead, IcpProfile, ActivityItem, KpiMetric } from '../../types';
+import type { ViewType, Lead, IcpProfile, ActivityItem, KpiMetric, PipelineSummary } from '../../types';
 import {
   Sparkles,
   ArrowRight,
@@ -21,6 +21,7 @@ interface DashboardViewProps {
   leads?: Lead[];
   icpProfile?: IcpProfile;
   activities?: ActivityItem[];
+  pipelineSummary?: PipelineSummary | null;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -29,6 +30,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   leads = [],
   icpProfile,
   activities = [],
+  pipelineSummary,
 }) => {
   // Dynamic calculation of KPIs
   const totalLeadsCount = leads.length;
@@ -36,14 +38,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const highFitCount = leads.filter((l) => l.score >= minThreshold).length;
   const highFitPercent = totalLeadsCount > 0 ? Math.round((highFitCount / totalLeadsCount) * 100) : 0;
 
-  const activePipelineValue = leads
-    .filter((l) => l.status !== 'Disqualified')
-    .reduce((sum, l) => sum + l.dealValue, 0);
+  const activePipelineValue = pipelineSummary
+    ? pipelineSummary.totalPipelineValue
+    : leads
+        .filter((l) => l.status !== 'Disqualified')
+        .reduce((sum, l) => sum + l.dealValue, 0);
 
   const convertedCount = leads.filter(
     (l) => l.status === 'Won' || l.status === 'Proposal' || l.status === 'Qualified'
   ).length;
-  const conversionRate = totalLeadsCount > 0 ? ((convertedCount / totalLeadsCount) * 100).toFixed(1) : '0.0';
+  const conversionRate = pipelineSummary
+    ? `${pipelineSummary.winRate}%`
+    : `${totalLeadsCount > 0 ? ((convertedCount / totalLeadsCount) * 100).toFixed(1) : '0.0'}%`;
+
+  const totalOppsCount = pipelineSummary ? pipelineSummary.totalOpportunities : leads.filter((l) => l.status !== 'Disqualified').length;
 
   const dynamicKpis: KpiMetric[] = [
     {
@@ -68,23 +76,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       value: `$${activePipelineValue.toLocaleString()}`,
       change: '+12.8%',
       trend: 'up',
-      subtitle: `${leads.filter((l) => l.status !== 'Disqualified').length} active opportunities`,
+      subtitle: `${totalOppsCount} active opportunities`,
     },
     {
       id: 'kpi-4',
-      title: 'Outreach Conversion',
-      value: `${conversionRate}%`,
+      title: 'Pipeline Win Rate',
+      value: conversionRate,
       change: '+4.1%',
       trend: 'up',
-      subtitle: `${convertedCount} converted prospects`,
+      subtitle: `${convertedCount} closed or active proposals`,
     },
     {
       id: 'kpi-5',
-      title: 'Agent Velocity',
-      value: '94 / hr',
-      change: 'Active',
+      title: 'Backend Sync Status',
+      value: 'Live',
+      change: 'Synced',
       trend: 'neutral',
-      subtitle: 'Scanning 8 data providers',
+      subtitle: 'SQLite WAL mode operational',
     },
   ];
 

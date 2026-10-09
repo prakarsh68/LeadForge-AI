@@ -44,7 +44,7 @@ export const knowledgeController = {
     }
   },
 
-  create(req: Request, res: Response, next: NextFunction): void {
+  create(req: Request, res: Response, _next: NextFunction): void {
     try {
       const created = knowledgeService.create(req.body);
       res.status(201).json({
@@ -60,7 +60,7 @@ export const knowledgeController = {
     }
   },
 
-  update(req: Request, res: Response, next: NextFunction): void {
+  update(req: Request, res: Response, _next: NextFunction): void {
     try {
       const { id } = req.params;
       const updated = knowledgeService.update(id, req.body);

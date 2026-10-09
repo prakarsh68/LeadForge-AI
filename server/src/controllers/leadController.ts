@@ -51,7 +51,7 @@ export const leadController = {
     }
   },
 
-  create(req: Request, res: Response, next: NextFunction): void {
+  create(req: Request, res: Response, _next: NextFunction): void {
     try {
       const created = leadService.create(req.body);
       res.status(201).json({
@@ -67,7 +67,7 @@ export const leadController = {
     }
   },
 
-  update(req: Request, res: Response, next: NextFunction): void {
+  update(req: Request, res: Response, _next: NextFunction): void {
     try {
       const { id } = req.params;
       const updated = leadService.update(id, req.body);

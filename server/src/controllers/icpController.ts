@@ -58,7 +58,7 @@ export const icpController = {
     }
   },
 
-  create(req: Request, res: Response, next: NextFunction): void {
+  create(req: Request, res: Response, _next: NextFunction): void {
     try {
       const created = icpService.create(req.body);
       res.status(201).json({
@@ -74,7 +74,7 @@ export const icpController = {
     }
   },
 
-  update(req: Request, res: Response, next: NextFunction): void {
+  update(req: Request, res: Response, _next: NextFunction): void {
     try {
       const { id } = req.params;
       const updated = icpService.update(id, req.body);
@@ -92,7 +92,7 @@ export const icpController = {
     }
   },
 
-  delete(req: Request, res: Response, next: NextFunction): void {
+  delete(req: Request, res: Response, _next: NextFunction): void {
     try {
       const { id } = req.params;
       const deleted = icpService.delete(id);

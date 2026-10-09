@@ -54,7 +54,7 @@ export const opportunityController = {
     }
   },
 
-  create(req: Request, res: Response, next: NextFunction): void {
+  create(req: Request, res: Response, _next: NextFunction): void {
     try {
       const created = opportunityService.create(req.body);
       res.status(201).json({
@@ -71,7 +71,7 @@ export const opportunityController = {
     }
   },
 
-  update(req: Request, res: Response, next: NextFunction): void {
+  update(req: Request, res: Response, _next: NextFunction): void {
     try {
       const { id } = req.params;
       const updated = opportunityService.update(id, req.body);

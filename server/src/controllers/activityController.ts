@@ -24,7 +24,7 @@ export const activityController = {
     }
   },
 
-  create(req: Request, res: Response, next: NextFunction): void {
+  create(req: Request, res: Response, _next: NextFunction): void {
     try {
       const { type, title, description, badge, timestamp } = req.body;
 

@@ -23,6 +23,8 @@ export interface Lead {
   triggers: string[];
   notes: string;
   lastActive: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ActivityItem {
@@ -32,6 +34,7 @@ export interface ActivityItem {
   description: string;
   timestamp: string;
   badge?: string;
+  createdAt?: string;
 }
 
 export interface KpiMetric {
@@ -44,6 +47,7 @@ export interface KpiMetric {
 }
 
 export interface IcpProfile {
+  id?: string;
   name: string;
   description: string;
   targetIndustries: string[];
@@ -56,6 +60,47 @@ export interface IcpProfile {
   techStack: string[];
   minScoreThreshold: number;
   negativeKeywords: string[];
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Opportunity {
+  id: string;
+  leadId: string;
+  title: string;
+  stage: LeadStatus;
+  dealValue: number;
+  confidenceScore: number;
+  expectedCloseDate: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  lead?: {
+    name: string;
+    company: string;
+    avatar: string;
+    email: string;
+    score: number;
+    tier: LeadScoreTier;
+    industry: string;
+  };
+}
+
+export interface PipelineSummary {
+  totalPipelineValue: number;
+  totalOpportunities: number;
+  stageCounts: Record<LeadStatus, number>;
+  stageValues: Record<LeadStatus, number>;
+  winRate: number;
+  averageDealValue: number;
+}
+
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data: T;
+  meta?: Record<string, any>;
+  message?: string;
+  error?: string;
 }
 
 export interface KnowledgeDocument {

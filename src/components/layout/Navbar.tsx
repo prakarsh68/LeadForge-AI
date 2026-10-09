@@ -17,6 +17,8 @@ interface NavbarProps {
   onSearchChange?: (query: string) => void;
   onTriggerScan?: () => void;
   activities?: ActivityItem[];
+  isBackendConnected?: boolean;
+  onRetryConnection?: () => void;
 }
 
 const VIEW_TITLES: Record<ViewType, { title: string; subtitle: string }> = {
@@ -49,6 +51,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSearchChange,
   onTriggerScan,
   activities = [],
+  isBackendConnected = true,
+  onRetryConnection,
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -71,13 +75,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const handleSimulateScan = () => {
     setIsScanning(true);
-    setScanMessage('Agent scanning 14 public registers and tech graphs...');
+    setScanMessage('Agent scanning public registers and tech graphs...');
     setTimeout(() => {
       setIsScanning(false);
       if (onTriggerScan) {
         onTriggerScan();
       }
-      setScanMessage('Completed: 2 new high-match leads discovered & added to repository!');
+      setScanMessage('Completed: New high-match leads discovered and synced to SQLite!');
       setTimeout(() => setScanMessage(null), 3500);
     }, 1200);
   };
@@ -123,13 +127,24 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Live Status indicator */}
-        <div className="hidden sm:flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-950/30 px-3 py-1 text-xs font-medium text-emerald-400">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-          </span>
-          <span>Lead Agent Active</span>
-        </div>
+        {isBackendConnected ? (
+          <div className="hidden sm:flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-950/30 px-3 py-1 text-xs font-medium text-emerald-400">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span>API Live (SQLite)</span>
+          </div>
+        ) : (
+          <button
+            onClick={onRetryConnection}
+            className="hidden sm:flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-950/40 px-3 py-1 text-xs font-semibold text-amber-300 hover:bg-amber-900/50 transition-colors cursor-pointer"
+            title="Click to reconnect to backend"
+          >
+            <span className="h-2 w-2 rounded-full bg-amber-400"></span>
+            <span>Offline (Cached) • Retry</span>
+          </button>
+        )}
 
         {/* Trigger Autonomous Scan Button */}
         <button
