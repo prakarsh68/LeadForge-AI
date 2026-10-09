@@ -63,3 +63,4 @@ export const activityService = {
     return this.create({ type, title, description, badge });
   },
 };
+

@@ -84,3 +84,4 @@ describe('Opportunities & Pipeline API (/api/opportunities)', () => {
     assert.ok(dupRes.body.error.includes('already exists'));
   });
 });
+

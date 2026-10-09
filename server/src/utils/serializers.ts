@@ -123,3 +123,4 @@ export function activityEntityToDto(entity: ActivityEntity): ActivityDTO {
     createdAt: entity.created_at,
   };
 }
+

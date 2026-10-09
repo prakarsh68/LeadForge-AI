@@ -97,3 +97,4 @@ describe('ICP Profiles API (/api/icp-profiles)', () => {
     assert.equal(invalid.body.success, false);
   });
 });
+

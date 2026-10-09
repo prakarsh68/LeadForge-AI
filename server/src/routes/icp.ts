@@ -9,3 +9,4 @@ icpRouter.get('/icp-profiles/:id', icpController.getById);
 icpRouter.post('/icp-profiles', icpController.create);
 icpRouter.patch('/icp-profiles/:id', icpController.update);
 icpRouter.delete('/icp-profiles/:id', icpController.delete);
+

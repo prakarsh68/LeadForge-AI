@@ -50,3 +50,4 @@ export function deriveTierFromScore(score: number): LeadScoreTier {
   if (score >= 70) return 'medium';
   return 'low';
 }
+

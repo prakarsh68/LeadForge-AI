@@ -246,3 +246,4 @@ export const icpService = {
     return true;
   },
 };
+

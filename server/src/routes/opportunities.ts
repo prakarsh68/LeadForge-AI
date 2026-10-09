@@ -13,3 +13,4 @@ opportunitiesRouter.get('/opportunities/:id', opportunityController.getById);
 opportunitiesRouter.post('/opportunities', opportunityController.create);
 opportunitiesRouter.patch('/opportunities/:id', opportunityController.update);
 opportunitiesRouter.delete('/opportunities/:id', opportunityController.delete);
+

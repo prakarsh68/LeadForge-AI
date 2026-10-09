@@ -60,3 +60,4 @@ describe('Activities API (/api/activities)', () => {
     assert.equal(missingTitle.status, 400);
   });
 });
+

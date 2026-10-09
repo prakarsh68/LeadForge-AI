@@ -86,3 +86,4 @@ describe('Knowledge Documents API (/api/knowledge-documents)', () => {
     assert.equal(getRes.status, 404);
   });
 });
+

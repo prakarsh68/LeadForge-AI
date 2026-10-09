@@ -182,3 +182,4 @@ export const knowledgeService = {
     return true;
   },
 };
+

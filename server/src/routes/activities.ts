@@ -5,3 +5,4 @@ export const activitiesRouter = Router();
 
 activitiesRouter.get('/activities', activityController.getAll);
 activitiesRouter.post('/activities', activityController.create);
+
