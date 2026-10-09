@@ -6,6 +6,7 @@ import { icpRouter } from './routes/icp.js';
 import { opportunitiesRouter } from './routes/opportunities.js';
 import { activitiesRouter } from './routes/activities.js';
 import { knowledgeRouter } from './routes/knowledge.js';
+import { discoveryRouter } from './routes/discovery.js';
 import { notFoundHandler } from './middleware/notFoundHandler.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
@@ -44,6 +45,7 @@ export function createApp(): Application {
   app.use('/api', opportunitiesRouter);
   app.use('/api', activitiesRouter);
   app.use('/api', knowledgeRouter);
+  app.use('/api', discoveryRouter);
 
   // Catch-all 404 Handler
   app.use(notFoundHandler);

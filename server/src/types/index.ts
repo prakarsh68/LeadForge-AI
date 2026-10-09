@@ -23,8 +23,120 @@ export interface LeadEntity {
   last_active?: string;
   qualification_breakdown?: string | null;
   qualified_at?: string | null;
+  source_provider?: string;
+  source_url?: string | null;
+  email_verification_status?: VerificationStatus;
+  enrichment_provenance?: string | null;
+  is_mock?: number;
   created_at: string;
   updated_at: string;
+}
+
+export type VerificationStatus = 'verified' | 'unverified' | 'inferred' | 'risky' | 'undeliverable';
+export type DedupStatus = 'new' | 'existing_lead' | 'same_company_existing' | 'duplicate_in_job';
+export type CandidateStatus = 'staged' | 'ingested' | 'rejected';
+export type DiscoveryJobStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type DiscoveryMode = 'real' | 'demo';
+
+export interface FieldProvenance<T = any> {
+  fieldName: string;
+  value: T;
+  sourceProvider: string;
+  sourceUrl?: string | null;
+  retrievedAt: string;
+  verificationStatus: VerificationStatus;
+  confidence?: number | null;
+}
+
+export interface DiscoveryJobEntity {
+  id: string;
+  provider: string;
+  mode: DiscoveryMode;
+  status: DiscoveryJobStatus;
+  query_params: string;
+  total_found: number;
+  error_message?: string | null;
+  created_at: string;
+  completed_at?: string | null;
+}
+
+export interface DiscoveryJobDTO {
+  id: string;
+  provider: string;
+  mode: DiscoveryMode;
+  status: DiscoveryJobStatus;
+  queryParams: Record<string, any>;
+  totalFound: number;
+  errorMessage?: string | null;
+  createdAt: string;
+  completedAt?: string | null;
+}
+
+export interface DiscoveredCandidateEntity {
+  id: string;
+  job_id: string;
+  provider: string;
+  mode: DiscoveryMode;
+  external_id?: string | null;
+  company_name: string;
+  company_domain: string;
+  contact_name: string;
+  title: string;
+  email?: string | null;
+  email_verification: VerificationStatus;
+  confidence_score?: number | null;
+  linkedin?: string | null;
+  location?: string | null;
+  industry?: string | null;
+  company_size?: string | null;
+  source_urls: string;
+  provenance_metadata: string;
+  icp_score_preview?: number | null;
+  icp_tier_preview?: LeadScoreTier | null;
+  dedup_status: DedupStatus;
+  existing_lead_id?: string | null;
+  status: CandidateStatus;
+  ingested_lead_id?: string | null;
+  is_mock: number;
+  created_at: string;
+}
+
+export interface DiscoveredCandidateDTO {
+  id: string;
+  jobId: string;
+  provider: string;
+  mode: DiscoveryMode;
+  externalId?: string | null;
+  companyName: string;
+  companyDomain: string;
+  contactName: string;
+  title: string;
+  email?: string | null;
+  emailVerification: VerificationStatus;
+  confidenceScore?: number | null;
+  linkedin?: string | null;
+  location?: string | null;
+  industry?: string | null;
+  companySize?: string | null;
+  sourceUrls: string[];
+  provenanceMetadata: Record<string, FieldProvenance>;
+  icpScorePreview?: number | null;
+  icpTierPreview?: LeadScoreTier | null;
+  dedupStatus: DedupStatus;
+  existingLeadId?: string | null;
+  status: CandidateStatus;
+  ingestedLeadId?: string | null;
+  isMock: boolean;
+  createdAt: string;
+}
+
+export interface DiscoveryProviderStatusDTO {
+  id: string;
+  displayName: string;
+  mode: DiscoveryMode;
+  isConfigured: boolean;
+  description: string;
+  capabilities: string[];
 }
 
 export interface IcpProfileEntity {
@@ -153,6 +265,11 @@ export interface LeadDTO {
   lastActive: string;
   qualificationBreakdown?: QualificationResult | null;
   qualifiedAt?: string | null;
+  sourceProvider?: string;
+  sourceUrl?: string | null;
+  emailVerificationStatus?: VerificationStatus;
+  enrichmentProvenance?: Record<string, FieldProvenance> | null;
+  isMock?: boolean;
   createdAt: string;
   updatedAt: string;
 }

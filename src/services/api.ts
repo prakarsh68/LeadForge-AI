@@ -8,6 +8,9 @@ import type {
   PipelineSummary,
   ApiResponse,
   QualificationResult,
+  DiscoveryProviderStatus,
+  DiscoveryJob,
+  DiscoveredCandidate,
 } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
@@ -276,6 +279,46 @@ export const api = {
   async deleteKnowledgeDoc(id: string): Promise<void> {
     await request<void>(`/api/knowledge-documents/${encodeURIComponent(id)}`, {
       method: 'DELETE',
+    });
+  },
+
+  // Discovery API
+  async getDiscoveryProviders(): Promise<DiscoveryProviderStatus[]> {
+    return request<DiscoveryProviderStatus[]>('/api/discovery/providers');
+  },
+
+  async startDiscoveryJob(params: {
+    provider?: string;
+    domain: string;
+    limit?: number;
+    targetRoles?: string[];
+  }): Promise<{ job: DiscoveryJob; candidates: DiscoveredCandidate[] }> {
+    return request<{ job: DiscoveryJob; candidates: DiscoveredCandidate[] }>('/api/discovery/jobs', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  },
+
+  async getDiscoveryJob(id: string): Promise<DiscoveryJob> {
+    return request<DiscoveryJob>(`/api/discovery/jobs/${encodeURIComponent(id)}`);
+  },
+
+  async getDiscoveredCandidates(jobId: string, status?: string): Promise<DiscoveredCandidate[]> {
+    const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+    return request<DiscoveredCandidate[]>(`/api/discovery/jobs/${encodeURIComponent(jobId)}/candidates${qs}`);
+  },
+
+  async ingestDiscoveredCandidate(candidateId: string): Promise<{
+    lead: Lead;
+    opportunity: Opportunity;
+    candidate: DiscoveredCandidate;
+  }> {
+    return request<{
+      lead: Lead;
+      opportunity: Opportunity;
+      candidate: DiscoveredCandidate;
+    }>(`/api/discovery/candidates/${encodeURIComponent(candidateId)}/ingest`, {
+      method: 'POST',
     });
   },
 };

@@ -25,8 +25,66 @@ export interface Lead {
   lastActive: string;
   qualificationBreakdown?: QualificationResult | null;
   qualifiedAt?: string | null;
+  sourceProvider?: string;
+  sourceUrl?: string | null;
+  emailVerificationStatus?: VerificationStatus;
+  isMock?: boolean;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export type VerificationStatus = 'verified' | 'unverified' | 'inferred' | 'risky' | 'undeliverable';
+export type DedupStatus = 'new' | 'existing_lead' | 'same_company_existing' | 'duplicate_in_job';
+export type CandidateStatus = 'staged' | 'ingested' | 'rejected';
+export type DiscoveryMode = 'real' | 'demo';
+
+export interface DiscoveryProviderStatus {
+  id: string;
+  displayName: string;
+  mode: DiscoveryMode;
+  isConfigured: boolean;
+  description: string;
+  capabilities: string[];
+}
+
+export interface DiscoveryJob {
+  id: string;
+  provider: string;
+  mode: DiscoveryMode;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  queryParams: Record<string, any>;
+  totalFound: number;
+  errorMessage?: string | null;
+  createdAt: string;
+  completedAt?: string | null;
+}
+
+export interface DiscoveredCandidate {
+  id: string;
+  jobId: string;
+  provider: string;
+  mode: DiscoveryMode;
+  externalId?: string | null;
+  companyName: string;
+  companyDomain: string;
+  contactName: string;
+  title: string;
+  email?: string | null;
+  emailVerification: VerificationStatus;
+  confidenceScore?: number | null;
+  linkedin?: string | null;
+  location?: string | null;
+  industry?: string | null;
+  companySize?: string | null;
+  sourceUrls: string[];
+  icpScorePreview?: number | null;
+  icpTierPreview?: LeadScoreTier | null;
+  dedupStatus: DedupStatus;
+  existingLeadId?: string | null;
+  status: CandidateStatus;
+  ingestedLeadId?: string | null;
+  isMock: boolean;
+  createdAt: string;
 }
 
 export type EvaluationStatus = 'match' | 'partial' | 'mismatch' | 'no_data';

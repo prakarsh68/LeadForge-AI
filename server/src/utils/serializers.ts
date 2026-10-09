@@ -9,6 +9,10 @@ import type {
   KnowledgeDocumentDTO,
   ActivityEntity,
   ActivityDTO,
+  DiscoveryJobEntity,
+  DiscoveryJobDTO,
+  DiscoveredCandidateEntity,
+  DiscoveredCandidateDTO,
 } from '../types/index.js';
 
 function safeParseJson<T>(raw: string | undefined | null, fallback: T): T {
@@ -42,6 +46,11 @@ export function leadEntityToDto(entity: LeadEntity): LeadDTO {
     lastActive: entity.last_active || '',
     qualificationBreakdown: safeParseJson<any>(entity.qualification_breakdown, null),
     qualifiedAt: entity.qualified_at || null,
+    sourceProvider: entity.source_provider || 'manual',
+    sourceUrl: entity.source_url || null,
+    emailVerificationStatus: entity.email_verification_status || 'unverified',
+    enrichmentProvenance: safeParseJson<any>(entity.enrichment_provenance, null),
+    isMock: Boolean(entity.is_mock),
     createdAt: entity.created_at,
     updatedAt: entity.updated_at,
   };
@@ -131,4 +140,50 @@ export function activityEntityToDto(entity: ActivityEntity): ActivityDTO {
     createdAt: entity.created_at,
   };
 }
+
+export function discoveryJobEntityToDto(entity: DiscoveryJobEntity): DiscoveryJobDTO {
+  return {
+    id: entity.id,
+    provider: entity.provider,
+    mode: entity.mode,
+    status: entity.status,
+    queryParams: safeParseJson<Record<string, any>>(entity.query_params, {}),
+    totalFound: entity.total_found,
+    errorMessage: entity.error_message || null,
+    createdAt: entity.created_at,
+    completedAt: entity.completed_at || null,
+  };
+}
+
+export function discoveredCandidateEntityToDto(entity: DiscoveredCandidateEntity): DiscoveredCandidateDTO {
+  return {
+    id: entity.id,
+    jobId: entity.job_id,
+    provider: entity.provider,
+    mode: entity.mode,
+    externalId: entity.external_id || null,
+    companyName: entity.company_name,
+    companyDomain: entity.company_domain,
+    contactName: entity.contact_name,
+    title: entity.title,
+    email: entity.email || null,
+    emailVerification: entity.email_verification,
+    confidenceScore: entity.confidence_score ?? null,
+    linkedin: entity.linkedin || null,
+    location: entity.location || null,
+    industry: entity.industry || null,
+    companySize: entity.company_size || null,
+    sourceUrls: safeParseJson<string[]>(entity.source_urls, []),
+    provenanceMetadata: safeParseJson<Record<string, any>>(entity.provenance_metadata, {}),
+    icpScorePreview: entity.icp_score_preview ?? null,
+    icpTierPreview: entity.icp_tier_preview ?? null,
+    dedupStatus: entity.dedup_status,
+    existingLeadId: entity.existing_lead_id || null,
+    status: entity.status,
+    ingestedLeadId: entity.ingested_lead_id || null,
+    isMock: Boolean(entity.is_mock),
+    createdAt: entity.created_at,
+  };
+}
+
 

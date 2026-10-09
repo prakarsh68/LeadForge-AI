@@ -111,6 +111,56 @@ export function initializeDatabase(customDb?: Database.Database): void {
     );
 
     CREATE INDEX IF NOT EXISTS idx_lead_qualifications_lead_id ON lead_qualifications(lead_id);
+
+    -- Phase 3B: Discovery Jobs and Staged Candidates
+    CREATE TABLE IF NOT EXISTS discovery_jobs (
+      id TEXT PRIMARY KEY,
+      provider TEXT NOT NULL,
+      mode TEXT NOT NULL CHECK(mode IN ('real', 'demo')),
+      status TEXT NOT NULL CHECK(status IN ('pending', 'running', 'completed', 'failed')),
+      query_params TEXT NOT NULL,
+      total_found INTEGER NOT NULL DEFAULT 0,
+      error_message TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      completed_at TEXT DEFAULT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_discovery_jobs_status ON discovery_jobs(status);
+    CREATE INDEX IF NOT EXISTS idx_discovery_jobs_created_at ON discovery_jobs(created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS discovered_candidates (
+      id TEXT PRIMARY KEY,
+      job_id TEXT NOT NULL REFERENCES discovery_jobs(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL,
+      mode TEXT NOT NULL CHECK(mode IN ('real', 'demo')),
+      external_id TEXT DEFAULT NULL,
+      company_name TEXT NOT NULL,
+      company_domain TEXT NOT NULL,
+      contact_name TEXT NOT NULL,
+      title TEXT NOT NULL,
+      email TEXT DEFAULT NULL,
+      email_verification TEXT NOT NULL DEFAULT 'unverified' CHECK(email_verification IN ('verified', 'unverified', 'inferred', 'risky', 'undeliverable')),
+      confidence_score INTEGER DEFAULT NULL,
+      linkedin TEXT DEFAULT NULL,
+      location TEXT DEFAULT NULL,
+      industry TEXT DEFAULT NULL,
+      company_size TEXT DEFAULT NULL,
+      source_urls TEXT DEFAULT '[]',
+      provenance_metadata TEXT NOT NULL,
+      icp_score_preview INTEGER DEFAULT NULL,
+      icp_tier_preview TEXT DEFAULT NULL,
+      dedup_status TEXT NOT NULL DEFAULT 'new' CHECK(dedup_status IN ('new', 'existing_lead', 'same_company_existing', 'duplicate_in_job')),
+      existing_lead_id TEXT DEFAULT NULL REFERENCES leads(id) ON DELETE SET NULL,
+      status TEXT NOT NULL DEFAULT 'staged' CHECK(status IN ('staged', 'ingested', 'rejected')),
+      ingested_lead_id TEXT DEFAULT NULL REFERENCES leads(id) ON DELETE SET NULL,
+      is_mock INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_discovered_candidates_job ON discovered_candidates(job_id);
+    CREATE INDEX IF NOT EXISTS idx_discovered_candidates_domain ON discovered_candidates(company_domain);
+    CREATE INDEX IF NOT EXISTS idx_discovered_candidates_email ON discovered_candidates(email);
+    CREATE INDEX IF NOT EXISTS idx_discovered_candidates_status ON discovered_candidates(status);
   `);
 
   // Safe additive migrations for existing tables
@@ -121,6 +171,21 @@ export function initializeDatabase(customDb?: Database.Database): void {
   }
   if (!leadColNames.includes('qualified_at')) {
     db.exec('ALTER TABLE leads ADD COLUMN qualified_at TEXT DEFAULT NULL;');
+  }
+  if (!leadColNames.includes('source_provider')) {
+    db.exec("ALTER TABLE leads ADD COLUMN source_provider TEXT DEFAULT 'manual';");
+  }
+  if (!leadColNames.includes('source_url')) {
+    db.exec('ALTER TABLE leads ADD COLUMN source_url TEXT DEFAULT NULL;');
+  }
+  if (!leadColNames.includes('email_verification_status')) {
+    db.exec("ALTER TABLE leads ADD COLUMN email_verification_status TEXT DEFAULT 'unverified';");
+  }
+  if (!leadColNames.includes('enrichment_provenance')) {
+    db.exec('ALTER TABLE leads ADD COLUMN enrichment_provenance TEXT DEFAULT NULL;');
+  }
+  if (!leadColNames.includes('is_mock')) {
+    db.exec('ALTER TABLE leads ADD COLUMN is_mock INTEGER NOT NULL DEFAULT 0;');
   }
 
   const icpColumns = db.prepare('PRAGMA table_info(icp_profiles)').all() as Array<{ name: string }>;
