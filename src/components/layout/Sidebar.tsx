@@ -9,7 +9,6 @@ import {
   ChevronRight,
   ShieldCheck,
   X,
-  Flame,
   Compass,
   Send,
 } from 'lucide-react';
@@ -68,28 +67,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }`}
       >
         {/* Brand Header */}
-        <div className="flex h-18 items-center justify-between px-6 border-b border-slate-800/80">
-          <div className="flex items-center gap-3">
-            <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-amber-500 via-orange-500 to-indigo-600 shadow-lg shadow-orange-500/20">
-              <Flame className="h-5 w-5 text-white animate-pulse" />
-              <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-slate-900 bg-emerald-400" />
+        <div className="flex h-18 items-center justify-between px-5 border-b border-slate-800/80 bg-slate-900/60">
+          <button
+            type="button"
+            onClick={() => {
+              onSelectView('dashboard');
+              onCloseMobile();
+            }}
+            className="group flex items-center gap-3 text-left cursor-pointer rounded-xl p-1.5 -ml-1 transition-all hover:bg-slate-800/60 focus:outline-none focus:ring-2 focus:ring-orange-500/30 active:scale-[0.98]"
+            title="Go to Command Dashboard"
+            aria-label="LeadForge AI Dashboard"
+          >
+            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-b from-slate-800/90 to-slate-950/90 border border-slate-700/60 p-1.5 shadow-md shadow-orange-500/10 group-hover:border-orange-500/50 group-hover:shadow-orange-500/25 group-hover:scale-105 transition-all">
+              <img
+                src="/logo-icon.png"
+                alt="LeadForge AI Logo"
+                className="h-full w-full object-contain filter drop-shadow-md"
+              />
+              <div
+                className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-slate-900 bg-emerald-400 shadow-sm"
+                title="System Online"
+              />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-extrabold tracking-tight text-white text-lg font-[Plus_Jakarta_Sans]">
+                <span className="font-extrabold tracking-tight text-white text-lg font-[Plus_Jakarta_Sans] group-hover:text-orange-200 transition-colors">
                   Lead<span className="bg-gradient-to-r from-orange-400 to-amber-300 bg-clip-text text-transparent">Forge</span>
                 </span>
                 <span className="rounded bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-300 border border-indigo-500/30">
                   AI
                 </span>
               </div>
-              <p className="text-[11px] font-medium text-slate-400">Autonomous Outbound</p>
+              <p className="text-[11px] font-medium text-slate-400 group-hover:text-slate-300 transition-colors">Autonomous Outbound</p>
             </div>
-          </div>
+          </button>
 
           <button
             onClick={onCloseMobile}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white lg:hidden"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white lg:hidden cursor-pointer"
             aria-label="Close sidebar"
           >
             <X className="h-5 w-5" />
