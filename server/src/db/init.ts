@@ -1,7 +1,8 @@
+import type Database from 'better-sqlite3';
 import { getDb } from './database.js';
 
-export function initializeDatabase(): void {
-  const db = getDb();
+export function initializeDatabase(customDb?: Database.Database): void {
+  const db = customDb || getDb();
 
   // Create tables using safe idempotent statements
   db.exec(`
@@ -77,6 +78,21 @@ export function initializeDatabase(): void {
     );
 
     CREATE INDEX IF NOT EXISTS idx_activities_created_at ON activities(created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS opportunities (
+      id TEXT PRIMARY KEY,
+      lead_id TEXT NOT NULL UNIQUE REFERENCES leads(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      stage TEXT NOT NULL CHECK(stage IN ('New', 'Contacted', 'Qualified', 'Proposal', 'Won', 'Disqualified')) DEFAULT 'New',
+      deal_value INTEGER NOT NULL DEFAULT 0,
+      confidence_score INTEGER NOT NULL DEFAULT 0,
+      expected_close_date TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_opportunities_stage ON opportunities(stage);
+    CREATE INDEX IF NOT EXISTS idx_opportunities_lead_id ON opportunities(lead_id);
   `);
 
   // Seed default ICP profile if none exists
@@ -344,4 +360,41 @@ export function initializeDatabase(): void {
       'Email Sent'
     );
   }
+
+  // Seed default opportunities matching leads if opportunities table is empty
+  const oppCount = (db.prepare('SELECT COUNT(*) as count FROM opportunities').get() as { count: number }).count;
+  if (oppCount === 0) {
+    const existingLeads = db.prepare('SELECT id, name, company, status, deal_value, score FROM leads').all() as Array<{
+      id: string;
+      name: string;
+      company: string;
+      status: string;
+      deal_value: number;
+      score: number;
+    }>;
+
+    if (existingLeads.length > 0) {
+      const insertOpp = db.prepare(`
+        INSERT INTO opportunities (
+          id, lead_id, title, stage, deal_value, confidence_score, expected_close_date
+        ) VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+30 days'))
+      `);
+
+      const insertOppsTx = db.transaction((leadsList: typeof existingLeads) => {
+        for (const lead of leadsList) {
+          insertOpp.run(
+            `opp-${lead.id}`,
+            lead.id,
+            `${lead.name} • ${lead.company}`,
+            lead.status,
+            lead.deal_value || 0,
+            lead.score || 0
+          );
+        }
+      });
+
+      insertOppsTx(existingLeads);
+    }
+  }
 }
+

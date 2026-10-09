@@ -1,6 +1,11 @@
 import express, { type Application } from 'express';
 import cors from 'cors';
 import { healthRouter } from './routes/health.js';
+import { leadsRouter } from './routes/leads.js';
+import { icpRouter } from './routes/icp.js';
+import { opportunitiesRouter } from './routes/opportunities.js';
+import { activitiesRouter } from './routes/activities.js';
+import { knowledgeRouter } from './routes/knowledge.js';
 import { notFoundHandler } from './middleware/notFoundHandler.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
@@ -34,6 +39,11 @@ export function createApp(): Application {
 
   // API Routes
   app.use('/api', healthRouter);
+  app.use('/api', leadsRouter);
+  app.use('/api', icpRouter);
+  app.use('/api', opportunitiesRouter);
+  app.use('/api', activitiesRouter);
+  app.use('/api', knowledgeRouter);
 
   // Catch-all 404 Handler
   app.use(notFoundHandler);
@@ -43,3 +53,4 @@ export function createApp(): Application {
 
   return app;
 }
+

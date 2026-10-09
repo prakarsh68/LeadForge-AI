@@ -44,9 +44,25 @@ export function getDb(): Database.Database {
   return dbInstance;
 }
 
+export function setDb(customDb: Database.Database | null): void {
+  if (dbInstance && dbInstance !== customDb) {
+    try {
+      dbInstance.close();
+    } catch {
+      // ignore
+    }
+  }
+  dbInstance = customDb;
+}
+
 export function closeDb(): void {
   if (dbInstance) {
-    dbInstance.close();
+    try {
+      dbInstance.close();
+    } catch {
+      // ignore
+    }
     dbInstance = null;
   }
 }
+

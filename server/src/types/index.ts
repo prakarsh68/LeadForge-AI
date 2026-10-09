@@ -67,6 +67,123 @@ export interface ActivityEntity {
   created_at: string;
 }
 
+export interface OpportunityEntity {
+  id: string;
+  lead_id: string;
+  title: string;
+  stage: LeadStatus;
+  deal_value: number;
+  confidence_score: number;
+  expected_close_date?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Client-facing DTOs matching frontend models
+export interface LeadDTO {
+  id: string;
+  name: string;
+  title: string;
+  company: string;
+  companyDomain: string;
+  avatar: string;
+  email: string;
+  linkedin: string;
+  location: string;
+  industry: string;
+  companySize: string;
+  score: number;
+  tier: LeadScoreTier;
+  status: LeadStatus;
+  dealValue: number;
+  triggers: string[];
+  notes: string;
+  lastActive: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IcpProfileDTO {
+  id: string;
+  name: string;
+  description: string;
+  targetIndustries: string[];
+  companySizeRanges: string[];
+  targetLocations: string[];
+  revenueRanges: string[];
+  targetRoles: string[];
+  seniorityLevels: string[];
+  buyingTriggers: string[];
+  techStack: string[];
+  minScoreThreshold: number;
+  negativeKeywords: string[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface KnowledgeDocumentDTO {
+  id: string;
+  title: string;
+  category: 'Product Specs' | 'Battlecards' | 'Case Studies' | 'Pricing' | 'Compliance';
+  type: 'pdf' | 'doc' | 'url' | 'notion';
+  sizeOrTokens: string;
+  status: 'Indexed' | 'Syncing' | 'Ready';
+  uploadedAt: string;
+  summary: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ActivityDTO {
+  id: string;
+  type: 'discovery' | 'score' | 'outreach' | 'stage_change';
+  title: string;
+  description: string;
+  timestamp: string;
+  badge?: string;
+  createdAt: string;
+}
+
+export interface OpportunityDTO {
+  id: string;
+  leadId: string;
+  title: string;
+  stage: LeadStatus;
+  dealValue: number;
+  confidenceScore: number;
+  expectedCloseDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+  lead?: {
+    name: string;
+    company: string;
+    avatar: string;
+    email: string;
+    score: number;
+    tier: LeadScoreTier;
+    industry: string;
+  };
+}
+
+export interface PipelineSummaryDTO {
+  totalPipelineValue: number;
+  totalOpportunities: number;
+  stageCounts: Record<LeadStatus, number>;
+  stageValues: Record<LeadStatus, number>;
+  winRate: number;
+  averageDealValue: number;
+}
+
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  meta?: Record<string, any>;
+  message?: string;
+  error?: string;
+  details?: any;
+}
+
 export interface HealthCheckResponse {
   status: 'healthy' | 'degraded' | 'unhealthy';
   uptimeSeconds: number;
@@ -81,7 +198,9 @@ export interface HealthCheckResponse {
       icp_profiles: number;
       knowledge_documents: number;
       activities: number;
+      opportunities?: number;
     } | null;
     error?: string;
   };
 }
+

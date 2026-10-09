@@ -18,6 +18,7 @@ healthRouter.get('/health', (_req: Request, res: Response) => {
     const icpCount = (db.prepare('SELECT COUNT(*) as count FROM icp_profiles').get() as { count: number }).count;
     const docsCount = (db.prepare('SELECT COUNT(*) as count FROM knowledge_documents').get() as { count: number }).count;
     const actsCount = (db.prepare('SELECT COUNT(*) as count FROM activities').get() as { count: number }).count;
+    const oppsCount = (db.prepare('SELECT COUNT(*) as count FROM opportunities').get() as { count: number }).count;
 
     const response: HealthCheckResponse = {
       status: 'healthy',
@@ -33,6 +34,7 @@ healthRouter.get('/health', (_req: Request, res: Response) => {
           icp_profiles: icpCount,
           knowledge_documents: docsCount,
           activities: actsCount,
+          opportunities: oppsCount,
         },
       },
     };

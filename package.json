@@ -10,8 +10,9 @@
     "preview": "vite preview",
     "server:dev": "npm --prefix server run dev",
     "server:build": "npm --prefix server run build",
-    "server:start": "npm --prefix server run start"
-
+    "server:start": "npm --prefix server run start",
+    "server:test": "npm --prefix server test",
+    "test": "npm --prefix server test"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
