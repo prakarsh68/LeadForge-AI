@@ -59,3 +59,4 @@ export const storage = {
     localStorage.removeItem(KEYS.ACTIVITIES);
   },
 };
+
