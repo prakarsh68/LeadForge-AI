@@ -64,16 +64,34 @@ export interface DiscoveryProviderStatus {
   capabilities: string[];
 }
 
+export type DiscoveryJobStatus = 'queued' | 'pending' | 'running' | 'completed' | 'partially_completed' | 'failed' | 'cancelled';
+
 export interface DiscoveryJob {
   id: string;
   provider: string;
   mode: DiscoveryMode;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: DiscoveryJobStatus;
   queryParams: Record<string, any>;
   totalFound: number;
+  candidatesFound?: number;
+  candidatesProcessed?: number;
+  candidatesIngested?: number;
+  candidatesSkipped?: number;
+  candidatesFailed?: number;
   errorMessage?: string | null;
+  lastErrorCategory?: string | null;
+  attemptCount?: number;
+  maxRetries?: number;
+  retryCount?: number;
+  nextRetryAt?: string | null;
+  cancelRequestedAt?: string | null;
+  claimedBy?: string | null;
+  claimedAt?: string | null;
+  leaseExpiresAt?: string | null;
+  startedAt?: string | null;
   createdAt: string;
   completedAt?: string | null;
+  updatedAt?: string;
 }
 
 export interface FieldProvenance<T = any> {
@@ -111,6 +129,7 @@ export interface DiscoveredCandidate {
   existingLeadId?: string | null;
   status: CandidateStatus;
   ingestedLeadId?: string | null;
+  processingError?: string | null;
   isMock: boolean;
   createdAt: string;
 }

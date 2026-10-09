@@ -26,6 +26,14 @@ import {
   Globe,
   Sliders,
   CheckCheck,
+  RotateCcw,
+  Ban,
+  History,
+  Clock,
+  AlertCircle,
+  X,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 interface DiscoveryViewProps {
@@ -48,6 +56,11 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [activeJob, setActiveJob] = useState<DiscoveryJob | null>(null);
+  const [recentJobs, setRecentJobs] = useState<DiscoveryJob[]>([]);
+  const [showHistory, setShowHistory] = useState<boolean>(false);
+  const [selectedJobFilter, setSelectedJobFilter] = useState<string | null>(null);
+  const [isCancellingJob, setIsCancellingJob] = useState<boolean>(false);
+  const [isRetryingJob, setIsRetryingJob] = useState<boolean>(false);
 
   // Candidate Data & Selection
   const [candidates, setCandidates] = useState<DiscoveredCandidate[]>([]);
@@ -89,9 +102,10 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
     async function initialize() {
       setIsLoadingCandidates(true);
       try {
-        const [provs, cands] = await Promise.all([
+        const [provs, cands, jobs] = await Promise.all([
           api.getDiscoveryProviders().catch(() => []),
           api.getAllDiscoveredCandidates({ limit: 100 }).catch(() => []),
+          api.getAllDiscoveryJobs(10).catch(() => []),
         ]);
         if (!isMounted) return;
         setProviders(provs);
@@ -102,6 +116,11 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
           setSelectedProviderId('mock');
         }
         setCandidates(cands);
+        setRecentJobs(jobs);
+        if (jobs.length > 0) {
+          const activeOrFirst = jobs.find((j) => j.status === 'running' || j.status === 'queued') || jobs[0];
+          setActiveJob(activeOrFirst);
+        }
       } catch (err) {
         console.error('[Discovery] Initialization error:', err);
       } finally {
@@ -117,6 +136,29 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
       isMounted = false;
     };
   }, []);
+
+  // Real-time polling for active queued or running job
+  useEffect(() => {
+    if (!activeJob) return;
+    if (activeJob.status !== 'queued' && activeJob.status !== 'running') return;
+
+    const interval = setInterval(async () => {
+      try {
+        const fresh = await api.getDiscoveryJob(activeJob.id);
+        setActiveJob(fresh);
+        setRecentJobs((prev) => prev.map((j) => (j.id === fresh.id ? fresh : j)));
+        if (fresh.status === 'completed' || fresh.status === 'partially_completed') {
+          void loadCandidates();
+          const updatedJobs = await api.getAllDiscoveryJobs(10).catch(() => []);
+          if (updatedJobs.length > 0) setRecentJobs(updatedJobs);
+        }
+      } catch (err) {
+        console.error('[Discovery] Polling job status failed:', err);
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [activeJob, loadCandidates]);
 
   const activeProvider = useMemo(() => {
     return providers.find((p) => p.id === selectedProviderId) || null;
@@ -156,6 +198,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
         provider: selectedProviderId,
         domain,
         limit: limitCount,
+        async: true,
       };
 
       if (targetDepartment !== 'all') {
@@ -164,24 +207,27 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
 
       const res = await api.startDiscoveryJob(params);
       setActiveJob(res.job);
+      setRecentJobs((prev) => [res.job, ...prev.filter((j) => j.id !== res.job.id)]);
+      setSelectedJobFilter(null);
 
-      // Prepend newly found candidates
-      setCandidates((prev) => {
-        const existingIds = new Set(prev.map((c) => c.id));
-        const newOnes = res.candidates.filter((c) => !existingIds.has(c.id));
-        return [...newOnes, ...prev];
-      });
+      // If candidates were returned synchronously
+      if (res.candidates && res.candidates.length > 0) {
+        setCandidates((prev) => {
+          const existingIds = new Set(prev.map((c) => c.id));
+          const newOnes = res.candidates.filter((c) => !existingIds.has(c.id));
+          return [...newOnes, ...prev];
+        });
 
-      // Automatically select eligible candidates from this new job
-      const newlyEligibleIds = res.candidates
-        .filter((c) => c.status === 'staged' && (c.dedupStatus === 'new' || c.dedupStatus === 'same_company_existing'))
-        .map((c) => c.id);
+        const newlyEligibleIds = res.candidates
+          .filter((c) => c.status === 'staged' && (c.dedupStatus === 'new' || c.dedupStatus === 'same_company_existing'))
+          .map((c) => c.id);
 
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        newlyEligibleIds.forEach((id) => next.add(id));
-        return next;
-      });
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          newlyEligibleIds.forEach((id) => next.add(id));
+          return next;
+        });
+      }
     } catch (err: any) {
       console.error('[Discovery] Job failed:', err);
       setSearchError(err instanceof ApiError ? err.message : 'Discovery job execution failed.');
@@ -190,9 +236,41 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
     }
   };
 
+  const handleCancelJob = async () => {
+    if (!activeJob) return;
+    setIsCancellingJob(true);
+    try {
+      const updated = await api.cancelDiscoveryJob(activeJob.id);
+      setActiveJob(updated);
+      setRecentJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
+    } catch (err: any) {
+      console.error('[Discovery] Cancel job failed:', err);
+    } finally {
+      setIsCancellingJob(false);
+    }
+  };
+
+  const handleRetryJob = async () => {
+    if (!activeJob) return;
+    setIsRetryingJob(true);
+    try {
+      const updated = await api.retryDiscoveryJob(activeJob.id);
+      setActiveJob(updated);
+      setRecentJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
+    } catch (err: any) {
+      console.error('[Discovery] Retry job failed:', err);
+    } finally {
+      setIsRetryingJob(false);
+    }
+  };
+
   // Filter candidates for table
   const filteredCandidates = useMemo(() => {
     return candidates.filter((c) => {
+      // Job specific filter
+      if (selectedJobFilter && c.jobId !== selectedJobFilter) {
+        return false;
+      }
       // Text search
       if (tableSearch.trim()) {
         const q = tableSearch.toLowerCase();
@@ -225,7 +303,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
 
       return true;
     });
-  }, [candidates, tableSearch, statusFilter, dedupFilter, tierFilter]);
+  }, [candidates, tableSearch, statusFilter, dedupFilter, tierFilter, selectedJobFilter]);
 
   // Selection helpers
   const eligibleSelectedCount = useMemo(() => {
@@ -672,23 +750,325 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
           </div>
         )}
 
-        {/* Active Job Information Banner */}
+        {/* Active Job Pipeline Monitor & History Card */}
         {activeJob && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-3 text-xs text-indigo-200">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-              <span>
-                Job <strong>{activeJob.id}</strong> completed: Found{' '}
-                <strong className="text-white">{activeJob.totalFound}</strong> candidate(s) for{' '}
-                <strong className="text-white">{activeJob.queryParams.domain}</strong> via{' '}
-                <strong className="capitalize">{activeJob.provider}</strong> provider.
-              </span>
+          <div className="rounded-2xl border border-indigo-500/30 bg-slate-900/90 shadow-xl overflow-hidden p-5 space-y-4">
+            {/* Header: ID, Status, Provider, Actions */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="font-mono text-xs font-bold text-indigo-400 bg-indigo-950/60 border border-indigo-800/40 px-2 py-0.5 rounded-lg">
+                  {activeJob.id}
+                </span>
+
+                {/* Status Badge */}
+                {activeJob.status === 'queued' && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2.5 py-0.5 text-xs font-bold">
+                    <Clock className="h-3.5 w-3.5 animate-pulse" />
+                    QUEUED
+                  </span>
+                )}
+                {activeJob.status === 'running' && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 text-xs font-bold">
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    RUNNING PIPELINE
+                  </span>
+                )}
+                {activeJob.status === 'completed' && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 text-xs font-bold">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    COMPLETED
+                  </span>
+                )}
+                {activeJob.status === 'partially_completed' && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/20 text-orange-300 border border-orange-500/30 px-2.5 py-0.5 text-xs font-bold">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    PARTIALLY COMPLETED
+                  </span>
+                )}
+                {activeJob.status === 'failed' && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2.5 py-0.5 text-xs font-bold">
+                    <XCircle className="h-3.5 w-3.5" />
+                    FAILED
+                  </span>
+                )}
+                {activeJob.status === 'cancelled' && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-600/30 text-slate-300 border border-slate-600/40 px-2.5 py-0.5 text-xs font-bold">
+                    <Ban className="h-3.5 w-3.5" />
+                    CANCELLED
+                  </span>
+                )}
+
+                <span className="text-xs text-slate-400">
+                  Target Domain:{' '}
+                  <strong className="text-white font-mono">{activeJob.queryParams.domain}</strong>
+                </span>
+                <span className="rounded bg-slate-800 text-slate-300 px-2 py-0.5 text-[11px] font-semibold uppercase">
+                  {activeJob.provider} ({activeJob.mode})
+                </span>
+              </div>
+
+              {/* Monitor Controls */}
+              <div className="flex items-center gap-2">
+                {/* Cancel Button */}
+                {(activeJob.status === 'queued' || activeJob.status === 'running') && (
+                  <button
+                    onClick={handleCancelJob}
+                    disabled={isCancellingJob || Boolean(activeJob.cancelRequestedAt)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-950/30 px-2.5 py-1 text-xs font-semibold text-rose-300 hover:bg-rose-900/40 transition-colors disabled:opacity-50"
+                  >
+                    {isCancellingJob ? (
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Ban className="h-3 w-3" />
+                    )}
+                    <span>{activeJob.cancelRequestedAt ? 'Cancelling...' : 'Cancel Job'}</span>
+                  </button>
+                )}
+
+                {/* Retry Button */}
+                {(activeJob.status === 'failed' ||
+                  activeJob.status === 'cancelled' ||
+                  activeJob.status === 'partially_completed') && (
+                  <button
+                    onClick={handleRetryJob}
+                    disabled={isRetryingJob}
+                    className="inline-flex items-center gap-1 rounded-lg border border-indigo-500/30 bg-indigo-950/40 px-2.5 py-1 text-xs font-semibold text-indigo-300 hover:bg-indigo-900/50 transition-colors disabled:opacity-50"
+                  >
+                    {isRetryingJob ? (
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <RotateCcw className="h-3 w-3" />
+                    )}
+                    <span>Retry Pipeline</span>
+                  </button>
+                )}
+
+                {/* Filter toggle */}
+                <button
+                  onClick={() =>
+                    setSelectedJobFilter((prev) => (prev === activeJob.id ? null : activeJob.id))
+                  }
+                  className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-semibold transition-colors ${
+                    selectedJobFilter === activeJob.id
+                      ? 'border-indigo-500 bg-indigo-600 text-white'
+                      : 'border-slate-700 bg-slate-800 text-slate-300 hover:text-white'
+                  }`}
+                >
+                  <Filter className="h-3 w-3" />
+                  <span>
+                    {selectedJobFilter === activeJob.id
+                      ? 'Showing This Job Only'
+                      : 'Filter Table by This Job'}
+                  </span>
+                </button>
+
+                {/* Dismiss Monitor */}
+                <button
+                  onClick={() => setActiveJob(null)}
+                  className="rounded-lg p-1 text-slate-400 hover:text-slate-200 transition-colors"
+                  title="Close monitor"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
-            <span className="font-mono text-[11px] text-slate-400">
-              {new Date(activeJob.createdAt).toLocaleTimeString()}
-            </span>
+
+            {/* Metrics Breakdown Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                <span className="text-[11px] font-semibold text-slate-400 block uppercase">
+                  Found
+                </span>
+                <span className="text-xl font-bold font-mono text-white">
+                  {activeJob.candidatesFound ?? activeJob.totalFound ?? 0}
+                </span>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                <span className="text-[11px] font-semibold text-slate-400 block uppercase">
+                  Processed & Staged
+                </span>
+                <span className="text-xl font-bold font-mono text-indigo-400">
+                  {activeJob.candidatesProcessed ?? 0}
+                </span>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                <span className="text-[11px] font-semibold text-slate-400 block uppercase">
+                  Ingested to CRM
+                </span>
+                <span className="text-xl font-bold font-mono text-emerald-400">
+                  {activeJob.candidatesIngested ?? 0}
+                </span>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                <span className="text-[11px] font-semibold text-slate-400 block uppercase">
+                  Skipped (Duplicates)
+                </span>
+                <span className="text-xl font-bold font-mono text-amber-400">
+                  {activeJob.candidatesSkipped ?? 0}
+                </span>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                <span className="text-[11px] font-semibold text-slate-400 block uppercase">
+                  Failed
+                </span>
+                <span className="text-xl font-bold font-mono text-rose-400">
+                  {activeJob.candidatesFailed ?? 0}
+                </span>
+              </div>
+            </div>
+
+            {/* Error Diagnostics Alert */}
+            {activeJob.errorMessage && (
+              <div className="rounded-xl border border-rose-500/30 bg-rose-950/30 p-3 text-xs space-y-1">
+                <div className="flex items-center gap-2 text-rose-300 font-semibold">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
+                  <span>Pipeline Execution Diagnostic:</span>
+                  {activeJob.lastErrorCategory && (
+                    <span className="rounded bg-rose-500/20 text-rose-200 border border-rose-500/30 px-1.5 py-0.5 text-[10px] font-mono uppercase">
+                      Category: {activeJob.lastErrorCategory}
+                    </span>
+                  )}
+                  {activeJob.attemptCount !== undefined && activeJob.maxRetries && (
+                    <span className="text-rose-400 text-[11px] ml-auto">
+                      Attempt {activeJob.attemptCount} of {activeJob.maxRetries}
+                    </span>
+                  )}
+                </div>
+                <p className="text-rose-200/90 pl-6 font-mono text-[11px]">{activeJob.errorMessage}</p>
+                {activeJob.nextRetryAt && (
+                  <p className="text-amber-300 pl-6 text-[11px]">
+                    Automatic retry scheduled for: {new Date(activeJob.nextRetryAt).toLocaleTimeString()}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Timestamps & Audit Row */}
+            <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 pt-1">
+              <div className="flex items-center gap-4">
+                <span>Created: {new Date(activeJob.createdAt).toLocaleTimeString()}</span>
+                {activeJob.startedAt && <span>Started: {new Date(activeJob.startedAt).toLocaleTimeString()}</span>}
+                {activeJob.completedAt && (
+                  <span>Completed: {new Date(activeJob.completedAt).toLocaleTimeString()}</span>
+                )}
+              </div>
+              {activeJob.retryCount !== undefined && activeJob.retryCount > 0 && (
+                <span className="text-indigo-400 font-medium">
+                  Retries executed: {activeJob.retryCount}
+                </span>
+              )}
+            </div>
           </div>
         )}
+
+        {/* Recent Jobs History Toggle & Panel */}
+        <div className="border-t border-slate-800/80 pt-3">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setShowHistory((prev) => !prev)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-300 hover:text-white transition-colors"
+            >
+              <History className="h-3.5 w-3.5 text-indigo-400" />
+              <span>Execution History ({recentJobs.length} past runs)</span>
+              {showHistory ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
+            {selectedJobFilter && (
+              <button
+                type="button"
+                onClick={() => setSelectedJobFilter(null)}
+                className="text-xs text-indigo-400 hover:text-indigo-300 underline"
+              >
+                Clear job filter (view all candidates)
+              </button>
+            )}
+          </div>
+
+          {showHistory && (
+            <div className="mt-3 rounded-xl border border-slate-800 bg-slate-950/60 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-900/80 text-[11px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                    <tr>
+                      <th className="py-2.5 px-3">Job ID</th>
+                      <th className="py-2.5 px-3">Status</th>
+                      <th className="py-2.5 px-3">Target Domain</th>
+                      <th className="py-2.5 px-3">Provider</th>
+                      <th className="py-2.5 px-3">Found / Ingested</th>
+                      <th className="py-2.5 px-3">Created</th>
+                      <th className="py-2.5 px-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    {recentJobs.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-4 text-center text-slate-500">
+                          No discovery pipeline jobs run yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      recentJobs.map((j) => (
+                        <tr
+                          key={j.id}
+                          className={`hover:bg-slate-800/40 transition-colors ${
+                            activeJob?.id === j.id ? 'bg-indigo-950/30' : ''
+                          }`}
+                        >
+                          <td className="py-2.5 px-3 font-mono text-[11px] text-indigo-300">
+                            {j.id}
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                j.status === 'completed'
+                                  ? 'bg-emerald-500/20 text-emerald-300'
+                                  : j.status === 'partially_completed'
+                                    ? 'bg-orange-500/20 text-orange-300'
+                                    : j.status === 'running'
+                                      ? 'bg-amber-500/20 text-amber-300'
+                                      : j.status === 'queued'
+                                        ? 'bg-blue-500/20 text-blue-300'
+                                        : j.status === 'failed'
+                                          ? 'bg-rose-500/20 text-rose-300'
+                                          : 'bg-slate-700 text-slate-300'
+                              }`}
+                            >
+                              {j.status}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 font-medium text-white">
+                            {j.queryParams?.domain || '—'}
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-400 capitalize">
+                            {j.provider} ({j.mode})
+                          </td>
+                          <td className="py-2.5 px-3 font-mono text-slate-300">
+                            {j.candidatesFound ?? j.totalFound ?? 0} / {j.candidatesIngested ?? 0}
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-400">
+                            {new Date(j.createdAt).toLocaleTimeString()}
+                          </td>
+                          <td className="py-2.5 px-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveJob(j);
+                                setSelectedJobFilter(j.id);
+                              }}
+                              className="rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-[11px] font-medium text-slate-300 hover:border-indigo-500 hover:text-white transition-colors"
+                            >
+                              Inspect
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Candidate Review Table Section */}

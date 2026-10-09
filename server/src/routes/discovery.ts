@@ -7,6 +7,8 @@ discoveryRouter.get('/discovery/providers', discoveryController.getProviders);
 discoveryRouter.get('/discovery/jobs', discoveryController.getAllJobs);
 discoveryRouter.post('/discovery/jobs', discoveryController.startJob);
 discoveryRouter.get('/discovery/jobs/:id', discoveryController.getJob);
+discoveryRouter.post('/discovery/jobs/:id/cancel', discoveryController.cancelJob);
+discoveryRouter.post('/discovery/jobs/:id/retry', discoveryController.retryJob);
 discoveryRouter.get('/discovery/jobs/:id/candidates', discoveryController.getCandidates);
 discoveryRouter.get('/discovery/candidates', discoveryController.getAllCandidates);
 discoveryRouter.post('/discovery/candidates/:id/ingest', discoveryController.ingestCandidate);

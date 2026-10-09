@@ -10,6 +10,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 import { createApp } from './app.js';
 import { initializeDatabase } from './db/init.js';
 import { closeDb, getDatabasePath } from './db/database.js';
+import { discoveryQueueService } from './services/discoveryQueueService.js';
 
 const PORT = parseInt(process.env.PORT || '5000', 10);
 
@@ -21,6 +22,10 @@ async function startServer(): Promise<void> {
     initializeDatabase();
     console.log(`[LeadForge Server] SQLite database initialized at: ${getDatabasePath()}`);
 
+    // Start background discovery worker for durable job scheduling and crash recovery
+    discoveryQueueService.startWorker(2000);
+    console.log('[LeadForge Server] Background discovery worker started.');
+
     const app = createApp();
 
     const server = app.listen(PORT, () => {
@@ -31,6 +36,7 @@ async function startServer(): Promise<void> {
     // Graceful Shutdown Handlers
     const handleShutdown = (signal: string) => {
       console.log(`\n[LeadForge Server] Received ${signal}. Shutting down gracefully...`);
+      discoveryQueueService.stopWorker();
       server.close(() => {
         closeDb();
         console.log('[LeadForge Server] Database connection closed. Server terminated.');

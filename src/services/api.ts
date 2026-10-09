@@ -293,6 +293,7 @@ export const api = {
     domain: string;
     limit?: number;
     targetRoles?: string[];
+    async?: boolean;
   }): Promise<{ job: DiscoveryJob; candidates: DiscoveredCandidate[] }> {
     return request<{ job: DiscoveryJob; candidates: DiscoveredCandidate[] }>('/api/discovery/jobs', {
       method: 'POST',
@@ -302,6 +303,18 @@ export const api = {
 
   async getDiscoveryJob(id: string): Promise<DiscoveryJob> {
     return request<DiscoveryJob>(`/api/discovery/jobs/${encodeURIComponent(id)}`);
+  },
+
+  async cancelDiscoveryJob(id: string): Promise<DiscoveryJob> {
+    return request<DiscoveryJob>(`/api/discovery/jobs/${encodeURIComponent(id)}/cancel`, {
+      method: 'POST',
+    });
+  },
+
+  async retryDiscoveryJob(id: string): Promise<DiscoveryJob> {
+    return request<DiscoveryJob>(`/api/discovery/jobs/${encodeURIComponent(id)}/retry`, {
+      method: 'POST',
+    });
   },
 
   async getDiscoveredCandidates(jobId: string, status?: string): Promise<DiscoveredCandidate[]> {

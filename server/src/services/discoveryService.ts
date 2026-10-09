@@ -16,10 +16,9 @@ import {
 } from '../utils/serializers.js';
 import { providerRegistry } from './discovery/providerRegistry.js';
 import { leadService } from './leadService.js';
-import { leadScoringService } from './leadScoringService.js';
-import { icpService } from './icpService.js';
 import { activityService } from './activityService.js';
 import { dataQualityService } from './dataQualityService.js';
+import { discoveryQueueService } from './discoveryQueueService.js';
 
 export interface StartDiscoveryJobInput {
   provider?: string;
@@ -93,7 +92,10 @@ export const discoveryService = {
     return row ? discoveredCandidateEntityToDto(row) : null;
   },
 
-  async startJob(input: StartDiscoveryJobInput): Promise<{
+  async startJob(
+    input: StartDiscoveryJobInput,
+    options?: { async?: boolean }
+  ): Promise<{
     job: DiscoveryJobDTO;
     candidates: DiscoveredCandidateDTO[];
   }> {
@@ -132,10 +134,13 @@ export const discoveryService = {
     const jobId = `job-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const limit = Math.max(1, Math.min(input.limit || 10, 50));
 
-    // Record job as running
+    // Durable insert: job is committed as 'queued' BEFORE execution begins
     db.prepare(`
-      INSERT INTO discovery_jobs (id, provider, mode, status, query_params, total_found, created_at)
-      VALUES (?, ?, ?, 'running', ?, 0, datetime('now'))
+      INSERT INTO discovery_jobs (
+        id, provider, mode, status, query_params,
+        total_found, candidates_found, candidates_processed, candidates_ingested, candidates_skipped, candidates_failed,
+        attempt_count, max_retries, retry_count, created_at, updated_at
+      ) VALUES (?, ?, ?, 'queued', ?, 0, 0, 0, 0, 0, 0, 0, 3, 0, datetime('now'), datetime('now'))
     `).run(
       jobId,
       provider.id,
@@ -143,162 +148,32 @@ export const discoveryService = {
       JSON.stringify({ domain: domainNorm, limit, targetRoles: input.targetRoles || [] })
     );
 
-    let rawCandidates: any[] = [];
-    try {
-      rawCandidates = await provider.searchDomain({
-        domain: domainNorm,
-        limit,
-        targetRoles: input.targetRoles,
-      });
-    } catch (err: any) {
-      db.prepare(`
-        UPDATE discovery_jobs
-        SET status = 'failed',
-            error_message = ?,
-            completed_at = datetime('now')
-        WHERE id = ?
-      `).run(err.message || 'Discovery provider execution failed', jobId);
-      throw err;
+    if (options?.async) {
+      // Dispatched to background execution
+      void discoveryQueueService.trigger();
+      const queuedJob = this.getJob(jobId)!;
+      return {
+        job: queuedJob,
+        candidates: [],
+      };
     }
 
-    // Process & stage candidates in a safe transaction
-    const processTx = db.transaction(() => {
-      // 1. Fetch active ICP profile for honest scoring preview
-      const activeIcp = icpService.getActive();
-
-      // 2. Fetch existing leads for safe identity matching
-      const existingLeads = db.prepare('SELECT id, email, company_domain FROM leads').all() as Array<{
-        id: string;
-        email: string;
-        company_domain: string;
-      }>;
-
-      const emailToLeadId = new Map<string, string>();
-      const domainToLeadId = new Map<string, string>();
-
-      for (const el of existingLeads) {
-        if (el.email) {
-          emailToLeadId.set(el.email.toLowerCase().trim(), el.id);
-        }
-        if (el.company_domain) {
-          domainToLeadId.set(el.company_domain.toLowerCase().trim(), el.id);
-        }
-      }
-
-      const seenEmailsInJob = new Set<string>();
-
-      const insertCandidateStmt = db.prepare(`
-        INSERT INTO discovered_candidates (
-          id, job_id, provider, mode, external_id, company_name, company_domain,
-          contact_name, title, email, email_verification, confidence_score, linkedin,
-          location, industry, company_size, source_urls, provenance_metadata,
-          icp_score_preview, icp_tier_preview, dedup_status, existing_lead_id, status,
-          is_mock, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'staged', ?, datetime('now'))
-      `);
-
-      for (let idx = 0; idx < rawCandidates.length; idx++) {
-        const c = rawCandidates[idx];
-        const candId = `cand-${jobId}-${idx + 1}`;
-        const candEmail = (c.email || '').toLowerCase().trim();
-        const candDomain = (c.companyDomain || domainNorm).toLowerCase().trim();
-
-        // Safe identity & deduplication logic
-        let dedupStatus: 'new' | 'existing_lead' | 'same_company_existing' | 'duplicate_in_job' = 'new';
-        let existingLeadId: string | null = null;
-
-        if (candEmail && emailToLeadId.has(candEmail)) {
-          // Exact contact email already present in CRM
-          dedupStatus = 'existing_lead';
-          existingLeadId = emailToLeadId.get(candEmail) || null;
-        } else if (candEmail && seenEmailsInJob.has(candEmail)) {
-          // Duplicate contact within this single search run
-          dedupStatus = 'duplicate_in_job';
-        } else if (domainToLeadId.has(candDomain)) {
-          // Company account exists in CRM, but this contact is new
-          dedupStatus = 'same_company_existing';
-          existingLeadId = domainToLeadId.get(candDomain) || null;
-        }
-
-        if (candEmail) {
-          seenEmailsInJob.add(candEmail);
-        }
-
-        // Preview qualification score using Phase 3A deterministic engine
-        let scorePreview: number | null = null;
-        let tierPreview: any = null;
-
-        if (activeIcp) {
-          const previewLead: any = {
-            id: c.externalId || candId,
-            name: c.fullName,
-            title: c.title,
-            company: c.companyName,
-            companyDomain: candDomain,
-            industry: c.industry || '',
-            companySize: c.companySize || '',
-            triggers: [],
-            notes: '',
-          };
-          const qual = leadScoringService.evaluateLead(previewLead, activeIcp);
-          scorePreview = qual.overallScore;
-          tierPreview = qual.tier;
-        }
-
-        insertCandidateStmt.run(
-          candId,
-          jobId,
-          provider.id,
-          provider.mode,
-          c.externalId || null,
-          c.companyName,
-          candDomain,
-          c.fullName,
-          c.title,
-          c.email || null,
-          c.emailVerification || 'unverified',
-          c.confidence ?? null,
-          c.linkedinUrl || null,
-          c.location || null,
-          c.industry || null,
-          c.companySize || null,
-          JSON.stringify(c.sourceUrls || []),
-          JSON.stringify(c.fieldProvenance || {}),
-          scorePreview,
-          tierPreview,
-          dedupStatus,
-          existingLeadId,
-          c.isMock ? 1 : 0
-        );
-      }
-
-      // 3. Mark job completed
-      db.prepare(`
-        UPDATE discovery_jobs
-        SET status = 'completed',
-            total_found = ?,
-            completed_at = datetime('now')
-        WHERE id = ?
-      `).run(rawCandidates.length, jobId);
-    });
-
-    processTx();
-
-    // Log discovery activity
-    activityService.log(
-      'discovery',
-      `Outbound Discovery (${provider.mode.toUpperCase()})`,
-      `Found ${rawCandidates.length} candidate contacts at ${domainNorm} via ${provider.displayName}`,
-      `${rawCandidates.length} Found`
-    );
-
-    const completedJob = this.getJob(jobId);
+    // Process job through the durable queue runner
+    const completedJob = await discoveryQueueService.processJob(jobId);
     const candidates = this.getCandidates(jobId);
 
     return {
-      job: completedJob!,
+      job: completedJob,
       candidates,
     };
+  },
+
+  cancelJob(jobId: string): { success: boolean; message: string; job?: DiscoveryJobDTO } {
+    return discoveryQueueService.cancelJob(jobId);
+  },
+
+  retryJob(jobId: string): { success: boolean; message: string; job?: DiscoveryJobDTO } {
+    return discoveryQueueService.retryJob(jobId);
   },
 
   ingestCandidate(candidateId: string): {
@@ -395,6 +270,16 @@ export const discoveryService = {
             ingested_lead_id = ?
         WHERE id = ?
       `).run(createdLead.id, candidateId);
+
+      // 5. Increment job ingested counter
+      if (candidate.jobId) {
+        db.prepare(`
+          UPDATE discovery_jobs
+          SET candidates_ingested = candidates_ingested + 1,
+              updated_at = datetime('now')
+          WHERE id = ?
+        `).run(candidate.jobId);
+      }
 
       return {
         leadId: createdLead.id,

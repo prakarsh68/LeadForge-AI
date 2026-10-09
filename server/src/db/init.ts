@@ -116,21 +116,38 @@ export function initializeDatabase(customDb?: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_lead_qualifications_lead_id ON lead_qualifications(lead_id);
 
-    -- Phase 3B: Discovery Jobs and Staged Candidates
+    -- Phase 3C: Discovery Jobs with Durable State Machine and Leases
     CREATE TABLE IF NOT EXISTS discovery_jobs (
       id TEXT PRIMARY KEY,
       provider TEXT NOT NULL,
       mode TEXT NOT NULL CHECK(mode IN ('real', 'demo')),
-      status TEXT NOT NULL CHECK(status IN ('pending', 'running', 'completed', 'failed')),
+      status TEXT NOT NULL CHECK(status IN ('queued', 'pending', 'running', 'completed', 'partially_completed', 'failed', 'cancelled')),
       query_params TEXT NOT NULL,
       total_found INTEGER NOT NULL DEFAULT 0,
+      candidates_found INTEGER NOT NULL DEFAULT 0,
+      candidates_processed INTEGER NOT NULL DEFAULT 0,
+      candidates_ingested INTEGER NOT NULL DEFAULT 0,
+      candidates_skipped INTEGER NOT NULL DEFAULT 0,
+      candidates_failed INTEGER NOT NULL DEFAULT 0,
       error_message TEXT DEFAULT NULL,
+      last_error_category TEXT DEFAULT NULL,
+      attempt_count INTEGER NOT NULL DEFAULT 0,
+      max_retries INTEGER NOT NULL DEFAULT 3,
+      retry_count INTEGER NOT NULL DEFAULT 0,
+      next_retry_at TEXT DEFAULT NULL,
+      cancel_requested_at TEXT DEFAULT NULL,
+      claimed_by TEXT DEFAULT NULL,
+      claimed_at TEXT DEFAULT NULL,
+      lease_expires_at TEXT DEFAULT NULL,
+      started_at TEXT DEFAULT NULL,
+      completed_at TEXT DEFAULT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      completed_at TEXT DEFAULT NULL
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE INDEX IF NOT EXISTS idx_discovery_jobs_status ON discovery_jobs(status);
     CREATE INDEX IF NOT EXISTS idx_discovery_jobs_created_at ON discovery_jobs(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_discovery_jobs_lease ON discovery_jobs(status, lease_expires_at);
 
     CREATE TABLE IF NOT EXISTS discovered_candidates (
       id TEXT PRIMARY KEY,
@@ -211,6 +228,125 @@ export function initializeDatabase(customDb?: Database.Database): void {
   if (!icpColNames.includes('scoring_weights')) {
     db.exec('ALTER TABLE icp_profiles ADD COLUMN scoring_weights TEXT NOT NULL DEFAULT \'{"industry":30,"roleSeniority":25,"intentTriggers":30,"techStack":15}\';');
   }
+
+  // Phase 3C: Check if discovery_jobs needs status constraint expansion for queued, partially_completed, cancelled
+  const discoveryJobMaster = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='discovery_jobs'").get() as { sql: string } | undefined;
+  if (discoveryJobMaster) {
+    const hasNewStatuses = discoveryJobMaster.sql.includes('partially_completed') || discoveryJobMaster.sql.includes('queued');
+    if (!hasNewStatuses) {
+      // Rebuild discovery_jobs table to expand status CHECK constraint safely without data loss
+      db.exec('PRAGMA foreign_keys = OFF;');
+      db.exec(`
+        CREATE TABLE discovery_jobs_p3c (
+          id TEXT PRIMARY KEY,
+          provider TEXT NOT NULL,
+          mode TEXT NOT NULL CHECK(mode IN ('real', 'demo')),
+          status TEXT NOT NULL CHECK(status IN ('queued', 'pending', 'running', 'completed', 'partially_completed', 'failed', 'cancelled')),
+          query_params TEXT NOT NULL,
+          total_found INTEGER NOT NULL DEFAULT 0,
+          candidates_found INTEGER NOT NULL DEFAULT 0,
+          candidates_processed INTEGER NOT NULL DEFAULT 0,
+          candidates_ingested INTEGER NOT NULL DEFAULT 0,
+          candidates_skipped INTEGER NOT NULL DEFAULT 0,
+          candidates_failed INTEGER NOT NULL DEFAULT 0,
+          error_message TEXT DEFAULT NULL,
+          last_error_category TEXT DEFAULT NULL,
+          attempt_count INTEGER NOT NULL DEFAULT 0,
+          max_retries INTEGER NOT NULL DEFAULT 3,
+          retry_count INTEGER NOT NULL DEFAULT 0,
+          next_retry_at TEXT DEFAULT NULL,
+          cancel_requested_at TEXT DEFAULT NULL,
+          claimed_by TEXT DEFAULT NULL,
+          claimed_at TEXT DEFAULT NULL,
+          lease_expires_at TEXT DEFAULT NULL,
+          started_at TEXT DEFAULT NULL,
+          completed_at TEXT DEFAULT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        INSERT INTO discovery_jobs_p3c (
+          id, provider, mode, status, query_params, total_found, candidates_found,
+          error_message, created_at, completed_at
+        )
+        SELECT
+          id, provider, mode,
+          CASE WHEN status = 'pending' THEN 'queued' ELSE status END,
+          query_params, total_found, total_found,
+          error_message, created_at, completed_at
+        FROM discovery_jobs;
+
+        DROP TABLE discovery_jobs;
+        ALTER TABLE discovery_jobs_p3c RENAME TO discovery_jobs;
+
+        CREATE INDEX IF NOT EXISTS idx_discovery_jobs_status ON discovery_jobs(status);
+        CREATE INDEX IF NOT EXISTS idx_discovery_jobs_created_at ON discovery_jobs(created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_discovery_jobs_lease ON discovery_jobs(status, lease_expires_at);
+      `);
+      db.exec('PRAGMA foreign_keys = ON;');
+    }
+  }
+
+  // Ensure all columns exist on discovery_jobs
+  const jobCols = db.prepare('PRAGMA table_info(discovery_jobs)').all() as Array<{ name: string }>;
+  const jobColNames = jobCols.map((c) => c.name);
+  if (!jobColNames.includes('candidates_found')) {
+    db.exec('ALTER TABLE discovery_jobs ADD COLUMN candidates_found INTEGER NOT NULL DEFAULT 0;');
+  }
+  if (!jobColNames.includes('candidates_processed')) {
+    db.exec('ALTER TABLE discovery_jobs ADD COLUMN candidates_processed INTEGER NOT NULL DEFAULT 0;');
+  }
+  if (!jobColNames.includes('candidates_ingested')) {
+    db.exec('ALTER TABLE discovery_jobs ADD COLUMN candidates_ingested INTEGER NOT NULL DEFAULT 0;');
+  }
+  if (!jobColNames.includes('candidates_skipped')) {
+    db.exec('ALTER TABLE discovery_jobs ADD COLUMN candidates_skipped INTEGER NOT NULL DEFAULT 0;');
+  }
+  if (!jobColNames.includes('candidates_failed')) {
+    db.exec('ALTER TABLE discovery_jobs ADD COLUMN candidates_failed INTEGER NOT NULL DEFAULT 0;');
+  }
+  if (!jobColNames.includes('last_error_category')) {
+    db.exec('ALTER TABLE discovery_jobs ADD COLUMN last_error_category TEXT DEFAULT NULL;');
+  }
+  if (!jobColNames.includes('attempt_count')) {
+    db.exec('ALTER TABLE discovery_jobs ADD COLUMN attempt_count INTEGER NOT NULL DEFAULT 0;');
+  }
+  if (!jobColNames.includes('max_retries')) {
+    db.exec('ALTER TABLE discovery_jobs ADD COLUMN max_retries INTEGER NOT NULL DEFAULT 3;');
+  }
+  if (!jobColNames.includes('retry_count')) {
+    db.exec('ALTER TABLE discovery_jobs ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0;');
+  }
+  if (!jobColNames.includes('next_retry_at')) {
+    db.exec('ALTER TABLE discovery_jobs ADD COLUMN next_retry_at TEXT DEFAULT NULL;');
+  }
+  if (!jobColNames.includes('cancel_requested_at')) {
+    db.exec('ALTER TABLE discovery_jobs ADD COLUMN cancel_requested_at TEXT DEFAULT NULL;');
+  }
+  if (!jobColNames.includes('claimed_by')) {
+    db.exec('ALTER TABLE discovery_jobs ADD COLUMN claimed_by TEXT DEFAULT NULL;');
+  }
+  if (!jobColNames.includes('claimed_at')) {
+    db.exec('ALTER TABLE discovery_jobs ADD COLUMN claimed_at TEXT DEFAULT NULL;');
+  }
+  if (!jobColNames.includes('lease_expires_at')) {
+    db.exec('ALTER TABLE discovery_jobs ADD COLUMN lease_expires_at TEXT DEFAULT NULL;');
+  }
+  if (!jobColNames.includes('started_at')) {
+    db.exec('ALTER TABLE discovery_jobs ADD COLUMN started_at TEXT DEFAULT NULL;');
+  }
+  if (!jobColNames.includes('updated_at')) {
+    db.exec("ALTER TABLE discovery_jobs ADD COLUMN updated_at TEXT NOT NULL DEFAULT (datetime('now'));");
+  }
+
+  // Discovered Candidates additive columns
+  const candCols = db.prepare('PRAGMA table_info(discovered_candidates)').all() as Array<{ name: string }>;
+  const candColNames = candCols.map((c) => c.name);
+  if (!candColNames.includes('processing_error')) {
+    db.exec('ALTER TABLE discovered_candidates ADD COLUMN processing_error TEXT DEFAULT NULL;');
+  }
+
+  db.exec('CREATE INDEX IF NOT EXISTS idx_discovery_jobs_lease ON discovery_jobs(status, lease_expires_at);');
 
   // Seed default ICP profile if none exists
   const icpCount = (db.prepare('SELECT COUNT(*) as count FROM icp_profiles').get() as { count: number }).count;

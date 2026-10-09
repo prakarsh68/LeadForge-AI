@@ -51,7 +51,7 @@ export interface FieldConflict {
 export type VerificationStatus = 'verified' | 'unverified' | 'inferred' | 'risky' | 'undeliverable';
 export type DedupStatus = 'new' | 'existing_lead' | 'same_company_existing' | 'duplicate_in_job';
 export type CandidateStatus = 'staged' | 'ingested' | 'rejected';
-export type DiscoveryJobStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type DiscoveryJobStatus = 'queued' | 'pending' | 'running' | 'completed' | 'partially_completed' | 'failed' | 'cancelled';
 export type DiscoveryMode = 'real' | 'demo';
 
 export interface FieldProvenance<T = any> {
@@ -71,9 +71,25 @@ export interface DiscoveryJobEntity {
   status: DiscoveryJobStatus;
   query_params: string;
   total_found: number;
+  candidates_found: number;
+  candidates_processed: number;
+  candidates_ingested: number;
+  candidates_skipped: number;
+  candidates_failed: number;
   error_message?: string | null;
-  created_at: string;
+  last_error_category?: string | null;
+  attempt_count: number;
+  max_retries: number;
+  retry_count: number;
+  next_retry_at?: string | null;
+  cancel_requested_at?: string | null;
+  claimed_by?: string | null;
+  claimed_at?: string | null;
+  lease_expires_at?: string | null;
+  started_at?: string | null;
   completed_at?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface DiscoveryJobDTO {
@@ -83,9 +99,25 @@ export interface DiscoveryJobDTO {
   status: DiscoveryJobStatus;
   queryParams: Record<string, any>;
   totalFound: number;
+  candidatesFound: number;
+  candidatesProcessed: number;
+  candidatesIngested: number;
+  candidatesSkipped: number;
+  candidatesFailed: number;
   errorMessage?: string | null;
+  lastErrorCategory?: string | null;
+  attemptCount: number;
+  maxRetries: number;
+  retryCount: number;
+  nextRetryAt?: string | null;
+  cancelRequestedAt?: string | null;
+  claimedBy?: string | null;
+  claimedAt?: string | null;
+  leaseExpiresAt?: string | null;
+  startedAt?: string | null;
   createdAt: string;
   completedAt?: string | null;
+  updatedAt: string;
 }
 
 export interface DiscoveredCandidateEntity {
@@ -113,6 +145,7 @@ export interface DiscoveredCandidateEntity {
   existing_lead_id?: string | null;
   status: CandidateStatus;
   ingested_lead_id?: string | null;
+  processing_error?: string | null;
   is_mock: number;
   created_at: string;
 }
@@ -142,6 +175,7 @@ export interface DiscoveredCandidateDTO {
   existingLeadId?: string | null;
   status: CandidateStatus;
   ingestedLeadId?: string | null;
+  processingError?: string | null;
   isMock: boolean;
   createdAt: string;
 }

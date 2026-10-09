@@ -16,23 +16,83 @@ export const discoveryController = {
 
   async startJob(req: Request, res: Response, _next: NextFunction): Promise<void> {
     try {
-      const { provider, domain, limit, targetRoles } = req.body;
-      const result = await discoveryService.startJob({
-        provider,
-        domain,
-        limit: limit !== undefined ? Number(limit) : undefined,
-        targetRoles,
-      });
+      const { provider, domain, limit, targetRoles, async: isAsync } = req.body;
+      const shouldRunAsync = isAsync === true || req.query.async === 'true';
+
+      const result = await discoveryService.startJob(
+        {
+          provider,
+          domain,
+          limit: limit !== undefined ? Number(limit) : undefined,
+          targetRoles,
+        },
+        { async: shouldRunAsync }
+      );
+
+      const msg =
+        result.job.status === 'queued'
+          ? 'Discovery job queued successfully for background execution.'
+          : `Discovery job completed. Found ${result.candidates.length} candidates.`;
 
       res.status(201).json({
         success: true,
         data: result,
-        message: `Discovery job completed. Found ${result.candidates.length} candidates.`,
+        message: msg,
       });
     } catch (error: any) {
       res.status(400).json({
         success: false,
         error: error.message || 'Discovery job failed to start.',
+      });
+    }
+  },
+
+  cancelJob(req: Request, res: Response, _next: NextFunction): void {
+    try {
+      const { id } = req.params;
+      const result = discoveryService.cancelJob(id);
+      if (!result.success) {
+        res.status(400).json({
+          success: false,
+          error: result.message,
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: result.job,
+        message: result.message,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to cancel discovery job.',
+      });
+    }
+  },
+
+  retryJob(req: Request, res: Response, _next: NextFunction): void {
+    try {
+      const { id } = req.params;
+      const result = discoveryService.retryJob(id);
+      if (!result.success) {
+        res.status(400).json({
+          success: false,
+          error: result.message,
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: result.job,
+        message: result.message,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to retry discovery job.',
       });
     }
   },

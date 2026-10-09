@@ -12,9 +12,12 @@ export class ProviderAuthError extends Error {
 }
 
 export class ProviderRateLimitError extends Error {
-  constructor(message: string = 'Provider rate limit or quota exceeded.') {
+  public retryAfterSeconds?: number;
+
+  constructor(message: string = 'Provider rate limit or quota exceeded.', retryAfterSeconds?: number) {
     super(message);
     this.name = 'ProviderRateLimitError';
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
