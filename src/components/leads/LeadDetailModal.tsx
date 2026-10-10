@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { UserAvatar } from '../common/UserAvatar';
 import type { Lead, LeadStatus, EvaluationStatus } from '../../types';
 import {
   X,
@@ -52,6 +53,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   const [savedNotesToast, setSavedNotesToast] = useState(false);
   const [isQualifying, setIsQualifying] = useState(false);
   const [qualifyError, setQualifyError] = useState<string | null>(null);
+  const [showAllTriggers, setShowAllTriggers] = useState(false);
 
   if (!lead) return null;
 
@@ -134,11 +136,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
 
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div className="flex items-start gap-4">
-              <img
-                src={lead.avatar}
-                alt={lead.name}
-                className="h-16 w-16 rounded-xl object-cover border-2 border-indigo-200 shadow-sm flex-shrink-0"
-              />
+              <UserAvatar name={lead.name} size="xl" className="rounded-xl border-2 border-indigo-200 shadow-sm" />
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="text-xl font-bold text-slate-900">{lead.name}</h3>
@@ -368,15 +366,28 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
             </h4>
             <div className="space-y-1.5">
               {lead.triggers && lead.triggers.length > 0 ? (
-                lead.triggers.map((trigger, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-800"
-                  >
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                    <span className="font-medium">{trigger}</span>
-                  </div>
-                ))
+                <>
+                  {(showAllTriggers ? lead.triggers : lead.triggers.slice(0, 2)).map((trigger, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-800"
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                      <span className="font-medium">{trigger}</span>
+                    </div>
+                  ))}
+                  {lead.triggers.length > 2 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllTriggers(!showAllTriggers)}
+                      className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer py-1 block"
+                    >
+                      {showAllTriggers
+                        ? '▲ Show Less Triggers'
+                        : `▼ Show More Triggers (+${lead.triggers.length - 2} more)`}
+                    </button>
+                  )}
+                </>
               ) : (
                 <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-2.5 text-xs text-slate-400 italic">
                   No active buying triggers recorded

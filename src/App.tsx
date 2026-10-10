@@ -12,6 +12,7 @@ import { KnowledgeBaseView } from './components/knowledge/KnowledgeBaseView';
 import { DiscoveryView } from './components/discovery/DiscoveryView';
 import { OutreachView } from './components/outreach/OutreachView';
 import { SettingsView } from './components/settings/SettingsView';
+import { LandingPageView } from './components/landing/LandingPageView';
 import { LeadDetailModal } from './components/leads/LeadDetailModal';
 import { AlertTriangle, RefreshCw, X, CheckCircle2 } from 'lucide-react';
 
@@ -25,6 +26,7 @@ export const App: React.FC = () => {
 
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isOpenMobile, setIsOpenMobile] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
 
   // Loading and Network States
@@ -412,9 +414,9 @@ export const App: React.FC = () => {
         title: 'Chief Revenue Officer',
         company: 'Vortex Automation',
         companyDomain: 'vortexauto.io',
-        avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+        avatar: '',
         email: 'camilla@vortexauto.io',
-        linkedin: 'https://linkedin.com',
+        linkedin: 'https://linkedin.com/in/camilla-moreau',
         location: 'Paris, France',
         industry: 'Enterprise Software & Cloud',
         companySize: '150 - 300',
@@ -429,9 +431,9 @@ export const App: React.FC = () => {
         title: 'VP of Global Sales',
         company: 'HyperScale AI',
         companyDomain: 'hyperscale.ai',
-        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+        avatar: '',
         email: 'arjun@hyperscale.ai',
-        linkedin: 'https://linkedin.com',
+        linkedin: 'https://linkedin.com/in/arjun-nambiar',
         location: 'Singapore',
         industry: 'AI & Data Analytics',
         companySize: '200 - 400',
@@ -498,6 +500,8 @@ export const App: React.FC = () => {
         onSelectView={(view) => setCurrentView(view)}
         isOpenMobile={isOpenMobile}
         onCloseMobile={() => setIsOpenMobile(false)}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
         icpProfile={icpProfile}
         leadsCount={leads.length}
         pipelineTotal={totalPipelineValue}
@@ -509,6 +513,8 @@ export const App: React.FC = () => {
         <Navbar
           currentView={currentView}
           onOpenMobileMenu={() => setIsOpenMobile(true)}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
           searchQuery={globalSearchQuery}
           onSearchChange={handleGlobalSearchChange}
           onTriggerScan={handleTriggerScan}
@@ -636,6 +642,12 @@ export const App: React.FC = () => {
                   leads={leads}
                   onSelectLead={(lead) => setSelectedLead(lead)}
                   onRefreshLeads={refreshFromBackend}
+                />
+              )}
+
+              {currentView === 'landing' && (
+                <LandingPageView
+                  onNavigate={(view) => setCurrentView(view)}
                 />
               )}
 

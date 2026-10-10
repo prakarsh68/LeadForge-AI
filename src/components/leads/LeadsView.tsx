@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { UserAvatar } from '../common/UserAvatar';
 
 import type { Lead, LeadStatus } from '../../types';
 import {
@@ -50,6 +51,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
   const [batchActionNotice, setBatchActionNotice] = useState<string | null>(null);
   const [showAddLeadModal, setShowAddLeadModal] = useState(false);
+  const [visibleCount, setVisibleCount] = useState<number>(10);
 
   // New Lead Form State
   const [newLeadForm, setNewLeadForm] = useState({
@@ -212,7 +214,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
       title: newLeadForm.title.trim() || 'Decision Maker',
       company: newLeadForm.company.trim(),
       companyDomain: cleanDomain,
-      avatar: `https://images.unsplash.com/photo-${1535713875002 + (leads.length % 5)}?w=150&auto=format&fit=crop&q=80`,
+      avatar: '',
       email: cleanEmail,
       linkedin: `https://linkedin.com/in/${newLeadForm.name.toLowerCase().replace(/\s+/g, '-')}`,
       location: 'United States',
@@ -461,7 +463,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                   </td>
                 </tr>
               ) : (
-                filteredLeads.map((lead) => {
+                filteredLeads.slice(0, visibleCount).map((lead) => {
                   const isSelected = selectedLeadIds.includes(lead.id);
                   return (
                     <tr
@@ -490,11 +492,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                           className="flex items-center gap-3 cursor-pointer"
                           onClick={() => onSelectLead(lead)}
                         >
-                          <img
-                            src={lead.avatar}
-                            alt={lead.name}
-                            className="h-9 w-9 rounded-full object-cover border border-slate-200 shrink-0"
-                          />
+                          <UserAvatar name={lead.name} size="md" />
                           <div>
                             <div className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors flex items-center gap-1.5">
                               {lead.name}
@@ -607,13 +605,40 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
           <div className="flex items-center gap-2">
             <span>Showing</span>
-            <span className="font-bold text-slate-900">{filteredLeads.length}</span>
-            <span>of {leads.length} discovered prospects</span>
+            <span className="font-bold text-slate-900">{Math.min(visibleCount, filteredLeads.length)}</span>
+            <span>of {filteredLeads.length} filtered prospects ({leads.length} total)</span>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] text-slate-500">
-              Changes persist automatically to browser storage
+          <div className="flex items-center gap-2 flex-wrap">
+            {filteredLeads.length > visibleCount && (
+              <button
+                type="button"
+                onClick={() => setVisibleCount((prev) => prev + 10)}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1 font-semibold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors shadow-2xs cursor-pointer"
+              >
+                Show 10 More Leads ({filteredLeads.length - visibleCount} remaining)
+              </button>
+            )}
+            {visibleCount > 10 && (
+              <button
+                type="button"
+                onClick={() => setVisibleCount(10)}
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                Collapse to 10
+              </button>
+            )}
+            {filteredLeads.length > 20 && visibleCount < filteredLeads.length && (
+              <button
+                type="button"
+                onClick={() => setVisibleCount(filteredLeads.length)}
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-slate-600 hover:text-indigo-600 transition-colors cursor-pointer"
+              >
+                Show All
+              </button>
+            )}
+            <span className="text-[11px] text-slate-400 hidden md:inline ml-2">
+              Synced with SQLite
             </span>
           </div>
         </div>

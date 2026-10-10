@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { KpiCard } from './KpiCard';
 import { DiscoveryChart } from './DiscoveryChart';
 import { TierDistributionChart } from './TierDistributionChart';
 import { RecentActivity } from './RecentActivity';
+import { UserAvatar } from '../common/UserAvatar';
 import type { ViewType, Lead, IcpProfile, ActivityItem, KpiMetric, PipelineSummary } from '../../types';
 import {
   Sparkles,
@@ -96,10 +97,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     },
   ];
 
-  // Top 3 high match leads from actual leads array
+  const [showMoreLeads, setShowMoreLeads] = useState(false);
+
+  // Top high match leads from actual leads array
   const topLeads = [...leads]
     .sort((a, b) => b.score - a.score)
-    .slice(0, 3);
+    .slice(0, showMoreLeads ? 9 : 3);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -177,7 +180,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             onClick={() => onNavigate('leads')}
             className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors self-start sm:self-auto"
           >
-            Explore all {leads.length} leads <ArrowRight className="h-3.5 w-3.5" />
+              Explore all {leads.length} leads <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </div>
 
@@ -186,63 +189,77 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             No prospects found. Run a discovery scan or adjust ICP criteria.
           </div>
         ) : (
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-            {topLeads.map((lead) => (
-              <div
-                key={lead.id}
-                onClick={() => onSelectLead(lead)}
-                className="group cursor-pointer rounded-xl border border-slate-200 bg-slate-50/50 p-4 transition-all hover:border-indigo-300 hover:bg-white hover:shadow-md flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={lead.avatar}
-                        alt={lead.name}
-                        className="h-10 w-10 rounded-full object-cover border border-slate-200"
-                      />
-                      <div>
-                        <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
-                          {lead.name}
-                        </h4>
-                        <p className="text-xs text-slate-500 line-clamp-1">{lead.title}</p>
+          <>
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+              {topLeads.map((lead) => (
+                <div
+                  key={lead.id}
+                  onClick={() => onSelectLead(lead)}
+                  className="group cursor-pointer rounded-xl border border-slate-200 bg-slate-50/50 p-4 transition-all hover:border-indigo-300 hover:bg-white hover:shadow-md flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <UserAvatar name={lead.name} size="md" />
+                        <div>
+                          <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                            {lead.name}
+                          </h4>
+                          <p className="text-xs text-slate-500 line-clamp-1">{lead.title}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-end">
+                        <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-extrabold text-emerald-800 font-mono">
+                          {lead.score}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium">ICP Fit</span>
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-end">
-                      <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-extrabold text-emerald-800 font-mono">
-                        {lead.score}
+                    <div className="mt-3 flex items-center gap-2 text-xs text-slate-600">
+                      <Building className="h-3.5 w-3.5 text-slate-400" />
+                      <span className="font-semibold text-slate-800">{lead.company}</span>
+                      <span className="text-slate-300">•</span>
+                      <span className="text-slate-500">{lead.companySize} emp</span>
+                    </div>
+
+                    {/* Primary Trigger Badge */}
+                    <div className="mt-3">
+                      <span className="inline-block rounded-md bg-indigo-50 border border-indigo-200 px-2 py-1 text-[11px] text-indigo-700 font-medium truncate max-w-full">
+                        ⚡ {lead.triggers?.[0] || 'High buying intent signal'}
                       </span>
-                      <span className="text-[10px] text-slate-400 font-medium">ICP Fit</span>
                     </div>
                   </div>
 
-                  <div className="mt-3 flex items-center gap-2 text-xs text-slate-600">
-                    <Building className="h-3.5 w-3.5 text-slate-400" />
-                    <span className="font-semibold text-slate-800">{lead.company}</span>
-                    <span className="text-slate-300">•</span>
-                    <span className="text-slate-500">{lead.companySize} emp</span>
-                  </div>
-
-                  {/* Primary Trigger Badge */}
-                  <div className="mt-3">
-                    <span className="inline-block rounded-md bg-indigo-50 border border-indigo-200 px-2 py-1 text-[11px] text-indigo-700 font-medium truncate max-w-full">
-                      ⚡ {lead.triggers?.[0] || 'High buying intent signal'}
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <span className="font-bold text-emerald-700 font-mono">
+                      ${lead.dealValue.toLocaleString()} ARR
+                    </span>
+                    <span className="inline-flex items-center gap-1 font-semibold text-indigo-600 group-hover:translate-x-0.5 transition-transform">
+                      View Profile <ExternalLink className="h-3 w-3" />
                     </span>
                   </div>
                 </div>
+              ))}
+            </div>
 
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                  <span className="font-bold text-emerald-700 font-mono">
-                    ${lead.dealValue.toLocaleString()} ARR
-                  </span>
-                  <span className="inline-flex items-center gap-1 font-semibold text-indigo-600 group-hover:translate-x-0.5 transition-transform">
-                    View Profile <ExternalLink className="h-3 w-3" />
-                  </span>
-                </div>
+            {leads.length > 3 && (
+              <div className="mt-4 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setShowMoreLeads(!showMoreLeads)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors shadow-2xs cursor-pointer"
+                >
+                  {showMoreLeads ? (
+                    <>Show Less Matches</>
+                  ) : (
+                    <>Show More Matches ({Math.min(leads.length, 9) - 3} more)</>
+                  )}
+                </button>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
 

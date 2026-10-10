@@ -1,4 +1,5 @@
 import React from 'react';
+import { UserAvatar } from '../common/UserAvatar';
 import type { Lead } from '../../types';
 import {
   ChevronRight,
@@ -36,11 +37,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
           className="flex items-center gap-2.5 cursor-pointer"
           onClick={() => onSelectLead(lead)}
         >
-          <img
-            src={lead.avatar}
-            alt={lead.name}
-            className="h-8 w-8 rounded-full object-cover border border-slate-200 shadow-2xs"
-          />
+          <UserAvatar name={lead.name} size="sm" />
           <div>
             <h4 className="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-1">
               {lead.name}

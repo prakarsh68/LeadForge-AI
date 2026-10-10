@@ -33,6 +33,12 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
     stage: 'New' as LeadStatus,
   });
 
+  const [expandedColumns, setExpandedColumns] = useState<Record<string, boolean>>({});
+
+  const toggleColumnExpand = (colId: string) => {
+    setExpandedColumns((prev) => ({ ...prev, [colId]: !prev[colId] }));
+  };
+
   const stages: LeadStatus[] = ['New', 'Contacted', 'Qualified', 'Proposal', 'Won'];
 
   const handleMoveStage = (leadId: string, direction: 'prev' | 'next') => {
@@ -76,7 +82,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
       title: newDealForm.title.trim() || 'Director of Operations',
       company: cleanCompany,
       companyDomain: cleanDomain,
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+      avatar: '',
       email: `contact@${cleanDomain}`,
       linkedin: 'https://linkedin.com',
       location: 'United States',
@@ -170,6 +176,9 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
             const colLeads = filteredLeads.filter((l) => l.status === col.id);
             const colTotalVal = colLeads.reduce((sum, l) => sum + l.dealValue, 0);
             const colIndex = stages.indexOf(col.id);
+            const isExpanded = !!expandedColumns[col.id];
+            const visibleLeads = isExpanded ? colLeads : colLeads.slice(0, 4);
+            const hasMore = colLeads.length > 4;
 
             // Accessible distinct column styles
             const getColHeaderStyle = (id: string) => {
@@ -214,16 +223,27 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                       No active prospects in this stage
                     </div>
                   ) : (
-                    colLeads.map((lead) => (
-                      <KanbanCard
-                        key={lead.id}
-                        lead={lead}
-                        onSelectLead={onSelectLead}
-                        onMoveStage={handleMoveStage}
-                        isFirstStage={colIndex === 0}
-                        isLastStage={colIndex === stages.length - 1}
-                      />
-                    ))
+                    <>
+                      {visibleLeads.map((lead) => (
+                        <KanbanCard
+                          key={lead.id}
+                          lead={lead}
+                          onSelectLead={onSelectLead}
+                          onMoveStage={handleMoveStage}
+                          isFirstStage={colIndex === 0}
+                          isLastStage={colIndex === stages.length - 1}
+                        />
+                      ))}
+                      {hasMore && (
+                        <button
+                          type="button"
+                          onClick={() => toggleColumnExpand(col.id)}
+                          className="w-full py-2 px-3 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl border border-indigo-200 transition-colors text-center"
+                        >
+                          {isExpanded ? 'Show fewer deals' : `+ Show ${colLeads.length - 4} more deals`}
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

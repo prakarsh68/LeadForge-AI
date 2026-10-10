@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Sparkles,
   Mail,
@@ -18,6 +18,8 @@ export const RecentActivity: React.FC<RecentActivityProps> = ({
   onNavigate,
   activities = [],
 }) => {
+  const [showAllActivities, setShowAllActivities] = useState(false);
+
   const getIcon = (type: string) => {
     switch (type) {
       case 'score':
@@ -30,6 +32,8 @@ export const RecentActivity: React.FC<RecentActivityProps> = ({
         return <Search className="h-4 w-4 text-sky-600" />;
     }
   };
+
+  const visibleActivities = showAllActivities ? activities.slice(0, 15) : activities.slice(0, 5);
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
@@ -45,7 +49,7 @@ export const RecentActivity: React.FC<RecentActivityProps> = ({
         </div>
         <button
           onClick={() => onNavigate('leads')}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors cursor-pointer"
         >
           View all leads <ArrowRight className="h-3.5 w-3.5" />
         </button>
@@ -57,7 +61,7 @@ export const RecentActivity: React.FC<RecentActivityProps> = ({
             No autonomous activities recorded yet.
           </div>
         ) : (
-          activities.slice(0, 5).map((act) => (
+          visibleActivities.map((act) => (
             <div
               key={act.id}
               className="flex items-start justify-between gap-3 py-3.5 hover:bg-slate-50/80 px-2 rounded-xl transition-colors"
@@ -87,6 +91,20 @@ export const RecentActivity: React.FC<RecentActivityProps> = ({
           ))
         )}
       </div>
+
+      {activities.length > 5 && (
+        <div className="mt-3 pt-3 border-t border-slate-100 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setShowAllActivities(!showAllActivities)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors shadow-2xs cursor-pointer"
+          >
+            {showAllActivities
+              ? 'Show Less Activities'
+              : `Show More Activities (${Math.min(activities.length, 15) - 5} more)`}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

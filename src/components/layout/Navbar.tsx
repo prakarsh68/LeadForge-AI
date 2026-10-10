@@ -7,12 +7,16 @@ import {
   Command,
   RefreshCw,
   CheckCircle2,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import type { ViewType, ActivityItem } from '../../types';
 
 interface NavbarProps {
   currentView: ViewType;
   onOpenMobileMenu: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
   onTriggerScan?: () => void;
@@ -25,6 +29,10 @@ const VIEW_TITLES: Record<ViewType, { title: string; subtitle: string }> = {
   dashboard: {
     title: 'Command Dashboard',
     subtitle: 'Real-time overview of AI lead discovery, conversion velocity, and ICP scoring',
+  },
+  landing: {
+    title: 'Project Overview & Subscription Model',
+    subtitle: 'LeadForge AI enterprise capabilities, real web crawling engine, and transparent pricing tiers',
   },
   icp: {
     title: 'ICP Configuration',
@@ -59,6 +67,8 @@ const VIEW_TITLES: Record<ViewType, { title: string; subtitle: string }> = {
 export const Navbar: React.FC<NavbarProps> = ({
   currentView,
   onOpenMobileMenu,
+  isCollapsed = false,
+  onToggleCollapse,
   searchQuery = '',
   onSearchChange,
   onTriggerScan,
@@ -71,7 +81,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [scanMessage, setScanMessage] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const viewInfo = VIEW_TITLES[currentView];
+  const viewInfo = VIEW_TITLES[currentView] || VIEW_TITLES.dashboard;
 
   // Hotkey listener: Ctrl + K or Cmd + K focuses search bar
   useEffect(() => {
@@ -100,14 +110,29 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="sticky top-0 z-30 flex h-18 w-full items-center justify-between border-b border-slate-200/90 bg-white/95 px-4 sm:px-6 backdrop-blur-md shadow-2xs">
-      {/* Left Title / Hamburger */}
+      {/* Left Title / Hamburger / Sidebar Toggle */}
       <div className="flex items-center gap-3">
+        {/* Mobile Hamburger Button */}
         <button
           onClick={onOpenMobileMenu}
           className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 lg:hidden cursor-pointer"
           aria-label="Open mobile menu"
         >
           <Menu className="h-5 w-5" />
+        </button>
+
+        {/* Desktop Sidebar Collapse / Expand Toggle Button */}
+        <button
+          onClick={onToggleCollapse}
+          className="hidden lg:flex items-center justify-center rounded-xl p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer border border-slate-200 shadow-2xs"
+          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {isCollapsed ? (
+            <PanelLeftOpen className="h-4 w-4" />
+          ) : (
+            <PanelLeftClose className="h-4 w-4" />
+          )}
         </button>
 
         <div>

@@ -1,4 +1,4 @@
-export type ViewType = 'dashboard' | 'icp' | 'discovery' | 'leads' | 'pipeline' | 'knowledge' | 'outreach' | 'settings';
+export type ViewType = 'dashboard' | 'icp' | 'discovery' | 'leads' | 'pipeline' | 'knowledge' | 'outreach' | 'settings' | 'landing';
 
 export type LeadStatus = 'New' | 'Contacted' | 'Qualified' | 'Proposal' | 'Won' | 'Disqualified';
 
