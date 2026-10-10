@@ -11,6 +11,7 @@ import { PipelineView } from './components/pipeline/PipelineView';
 import { KnowledgeBaseView } from './components/knowledge/KnowledgeBaseView';
 import { DiscoveryView } from './components/discovery/DiscoveryView';
 import { OutreachView } from './components/outreach/OutreachView';
+import { SettingsView } from './components/settings/SettingsView';
 import { LeadDetailModal } from './components/leads/LeadDetailModal';
 import { AlertTriangle, RefreshCw, X, CheckCircle2 } from 'lucide-react';
 
@@ -635,6 +636,12 @@ export const App: React.FC = () => {
                   leads={leads}
                   onSelectLead={(lead) => setSelectedLead(lead)}
                   onRefreshLeads={refreshFromBackend}
+                />
+              )}
+
+              {currentView === 'settings' && (
+                <SettingsView
+                  onNavigateToDiscovery={() => setCurrentView('discovery')}
                 />
               )}
             </>

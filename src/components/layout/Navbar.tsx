@@ -50,6 +50,10 @@ const VIEW_TITLES: Record<ViewType, { title: string; subtitle: string }> = {
     title: 'Outreach & CRM Engagement',
     subtitle: 'Automated 3-step personalized sequences, execution safety controls, and CRM synchronization',
   },
+  settings: {
+    title: 'Platform Settings & Connectors',
+    subtitle: 'Manage Crawlee source profiles, external API connectors, rate limits, and platform safety controls',
+  },
 };
 
 export const Navbar: React.FC<NavbarProps> = ({

@@ -26,6 +26,7 @@ export interface StartDiscoveryJobInput {
   domain: string;
   limit?: number;
   targetRoles?: string[];
+  profileId?: string;
 }
 
 export const discoveryService = {
@@ -115,20 +116,28 @@ export const discoveryService = {
 
     // Resolve provider: default to 'hunter' if configured, otherwise 'mock' (demo mode)
     let requestedProviderId = (input.provider || '').toLowerCase().trim();
+    if (requestedProviderId === 'crawlee') {
+      requestedProviderId = 'crawlee_web';
+    }
     if (!requestedProviderId) {
       const hunter = providerRegistry.get('hunter');
-      requestedProviderId = hunter && hunter.isConfigured() ? 'hunter' : 'mock';
+      requestedProviderId = hunter && hunter.isConfigured() ? 'hunter' : 'crawlee_web';
     }
 
     const provider = providerRegistry.get(requestedProviderId);
     if (!provider) {
-      throw new Error(`Unknown discovery provider: "${requestedProviderId}". Available: hunter, mock.`);
+      throw new Error(`Unknown discovery provider: "${requestedProviderId}". Available: hunter, crawlee_web, mock.`);
     }
 
     // Explicit error if real provider requested but not configured (prevent silent fake data)
     if (provider.mode === 'real' && !provider.isConfigured()) {
+      if (provider.id === 'hunter') {
+        throw new Error(
+          `Real discovery via "${provider.displayName}" is unavailable because HUNTER_API_KEY is not configured in the server environment. Please set HUNTER_API_KEY, use Crawlee ("crawlee_web"), or select Demo Mode ("mock").`
+        );
+      }
       throw new Error(
-        `Real discovery via "${provider.displayName}" is unavailable because HUNTER_API_KEY is not configured in the server environment. Please set HUNTER_API_KEY or select Demo Mode ("mock").`
+        `Real discovery via "${provider.displayName}" is not configured. Please ensure a valid source profile or permitted domain is provided.`
       );
     }
 
@@ -146,7 +155,12 @@ export const discoveryService = {
       jobId,
       provider.id,
       provider.mode,
-      JSON.stringify({ domain: domainNorm, limit, targetRoles: input.targetRoles || [] })
+      JSON.stringify({
+        domain: domainNorm,
+        limit,
+        targetRoles: input.targetRoles || [],
+        profileId: input.profileId,
+      })
     );
 
     if (options?.async) {
@@ -220,6 +234,12 @@ export const discoveryService = {
     const normTitle = dataQualityService.normalizeTitle(candidate.title);
     const normEmail = dataQualityService.normalizeEmail(candidate.email);
 
+    if (!candidate.email || !normEmail) {
+      throw new Error(
+        `Candidate "${candidate.contactName}" cannot be ingested because no verified or public business email was discovered on the source page. Please enrich contact information before CRM ingestion.`
+      );
+    }
+
     const ingestTx = db.transaction(() => {
       // 1. Create official lead record with clean normalized values
       const createdLead = leadService.create({
@@ -227,7 +247,7 @@ export const discoveryService = {
         title: normTitle,
         company: normCompany,
         companyDomain: normDomain,
-        email: normEmail || `contact@${normDomain}`,
+        email: normEmail,
         linkedin: candidate.linkedin || undefined,
         location: candidate.location || undefined,
         industry: candidate.industry || 'Enterprise Software & Cloud',
@@ -377,7 +397,7 @@ export const discoveryService = {
   getConnectorCapabilities(): Array<{
     id: string;
     name: string;
-    providerType: 'live_api' | 'first_party_crm' | 'signal_enrichment' | 'demo_sandbox';
+    providerType: 'live_api' | 'live_crawler' | 'first_party_crm' | 'signal_enrichment' | 'demo_sandbox';
     capabilities: string[];
     isConfigured: boolean;
     requiredCredentials: string[];
@@ -390,6 +410,18 @@ export const discoveryService = {
     const isHunterConfigured = hunter ? hunter.isConfigured() : false;
 
     return [
+      {
+        id: 'crawlee_web',
+        name: 'Crawlee Open-Source Public Web Crawler',
+        providerType: 'live_crawler',
+        capabilities: ['company_discovery', 'domain_search', 'hiring_signals', 'technology_signals', 'public_contact_extraction'],
+        isConfigured: true,
+        requiredCredentials: [],
+        healthStatus: 'healthy',
+        costModel: { perRecord: 0.00, currency: 'USD' },
+        knownLimitations: 'Requires permitted starting URLs or corporate domain. Bounded by robots.txt and safe crawl limits.',
+        roleDescription: 'Extracts real company metadata, executive teams, public contacts, and hiring/tech signals from live websites using CheerioCrawler.',
+      },
       {
         id: 'hunter',
         name: 'Hunter.io (Domain Search API v2)',

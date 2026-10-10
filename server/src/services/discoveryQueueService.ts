@@ -301,7 +301,7 @@ export class DiscoveryQueueService {
     }
 
     let job = db.prepare('SELECT * FROM discovery_jobs WHERE id = ?').get(jobId) as DiscoveryJobEntity;
-    const queryParams: { domain: string; limit?: number; targetRoles?: string[] } = JSON.parse(job.query_params);
+    const queryParams: { domain: string; limit?: number; targetRoles?: string[]; profileId?: string } = JSON.parse(job.query_params);
     const domainNorm = queryParams.domain;
     const limit = queryParams.limit || 10;
     const targetRoles = queryParams.targetRoles;
@@ -370,6 +370,8 @@ export class DiscoveryQueueService {
         domain: domainNorm,
         limit,
         targetRoles,
+        jobId,
+        profileId: queryParams.profileId,
       });
     } catch (err: any) {
       const classified = this.classifyError(err);

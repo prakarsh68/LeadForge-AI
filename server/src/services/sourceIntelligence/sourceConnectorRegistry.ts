@@ -7,6 +7,7 @@ import { FirstPartyCrmSourceConnector } from './connectors/firstPartyCrmConnecto
 import { JobBoardSignalsConnector } from './connectors/jobBoardSignalsConnector.js';
 import { TechSignalsConnector } from './connectors/techSignalsConnector.js';
 import { DemoAdaptiveSignalsConnector } from './connectors/demoAdaptiveConnector.js';
+import { CrawleePublicWebSourceConnector } from './connectors/crawleeConnector.js';
 
 export class SourceConnectorRegistry {
   private static instance: SourceConnectorRegistry;
@@ -29,6 +30,7 @@ export class SourceConnectorRegistry {
     this.register(new JobBoardSignalsConnector());
     this.register(new TechSignalsConnector());
     this.register(new DemoAdaptiveSignalsConnector());
+    this.register(new CrawleePublicWebSourceConnector());
   }
 
   public register(connector: ISourceConnector): void {

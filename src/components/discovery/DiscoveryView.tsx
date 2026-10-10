@@ -4,6 +4,7 @@ import type {
   DiscoveryJob,
   DiscoveredCandidate,
   IngestBatchResult,
+  CrawlSourceProfile,
 } from '../../types';
 import { api, ApiError } from '../../services/api';
 import { CandidateProvenanceModal } from './CandidateProvenanceModal';
@@ -57,7 +58,9 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
   // Connector Capabilities & Status
   const [providers, setProviders] = useState<DiscoveryProviderStatus[]>([]);
   const [_connectorCapabilities, setConnectorCapabilities] = useState<any[]>([]);
-  const [selectedProviderId, setSelectedProviderId] = useState<string>('hunter');
+  const [selectedProviderId, setSelectedProviderId] = useState<string>('crawlee_web');
+  const [crawlProfiles, setCrawlProfiles] = useState<CrawlSourceProfile[]>([]);
+  const [selectedProfileId, setSelectedProfileId] = useState<string>('');
 
   // Dry-Run Simulation State
   const [dryRunResult, setDryRunResult] = useState<any | null>(null);
@@ -119,22 +122,27 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
     async function initialize() {
       setIsLoadingCandidates(true);
       try {
-        const [provs, capsRes, cands, jobs] = await Promise.all([
+        const [provs, capsRes, cands, jobs, profilesRes] = await Promise.all([
           api.getDiscoveryProviders().catch(() => []),
           api.getConnectorCapabilities().catch(() => []),
           api.getAllDiscoveredCandidates({ limit: 100 }).catch(() => []),
           api.getAllDiscoveryJobs(10).catch(() => []),
+          api.getCrawlProfiles().catch(() => []),
         ]);
         if (!isMounted) return;
         setProviders(provs);
         setConnectorCapabilities(Array.isArray(capsRes) ? capsRes : []);
+        setCrawlProfiles(profilesRes);
         
+        const crawlee = provs.find((p) => p.id === 'crawlee_web');
         const hunter = provs.find((p) => p.id === 'hunter');
-        if (hunter && hunter.isConfigured) {
+        if (crawlee && crawlee.isConfigured) {
+          setSelectedProviderId('crawlee_web');
+          setOperatingMode('live');
+        } else if (hunter && hunter.isConfigured) {
           setSelectedProviderId('hunter');
           setOperatingMode('live');
         } else {
-          // If hunter is not configured, default to demo mode
           setSelectedProviderId('mock');
           setOperatingMode('demo');
         }
@@ -224,6 +232,10 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
         async: true,
       };
 
+      if (selectedProviderId === 'crawlee_web' && selectedProfileId) {
+        params.profileId = selectedProfileId;
+      }
+
       if (targetDepartment !== 'all') {
         params.targetRoles = [targetDepartment];
       }
@@ -242,7 +254,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
         });
 
         const newlyEligibleIds = res.candidates
-          .filter((c) => c.status === 'staged' && (c.dedupStatus === 'new' || c.dedupStatus === 'same_company_existing'))
+          .filter((c) => c.status === 'staged' && (c.dedupStatus === 'new' || c.dedupStatus === 'same_company_existing') && Boolean(c.email))
           .map((c) => c.id);
 
         setSelectedIds((prev) => {
@@ -381,7 +393,8 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
       (c) =>
         selectedIds.has(c.id) &&
         c.status === 'staged' &&
-        (c.dedupStatus === 'new' || c.dedupStatus === 'same_company_existing')
+        (c.dedupStatus === 'new' || c.dedupStatus === 'same_company_existing') &&
+        Boolean(c.email)
     ).length;
   }, [candidates, selectedIds]);
 
@@ -407,7 +420,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
 
   const handleSelectAllEligible = () => {
     const eligibleIds = candidates
-      .filter((c) => c.status === 'staged' && (c.dedupStatus === 'new' || c.dedupStatus === 'same_company_existing'))
+      .filter((c) => c.status === 'staged' && (c.dedupStatus === 'new' || c.dedupStatus === 'same_company_existing') && Boolean(c.email))
       .map((c) => c.id);
     setSelectedIds(new Set(eligibleIds));
   };
@@ -626,7 +639,9 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
               <div
                 onClick={() => {
                   setOperatingMode('live');
-                  setSelectedProviderId('hunter');
+                  if (selectedProviderId === 'mock') {
+                    setSelectedProviderId('crawlee_web');
+                  }
                   setDryRunResult(null);
                 }}
                 className={`cursor-pointer rounded-2xl border p-4 transition-all relative overflow-hidden flex flex-col justify-between ${
@@ -639,20 +654,27 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2.5">
                       <div className="h-9 w-9 rounded-xl bg-orange-100 border border-orange-200 flex items-center justify-center text-orange-600 font-black text-sm">
-                        H
+                        {selectedProviderId === 'crawlee_web' ? 'CW' : 'H'}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-slate-900 text-sm">Mode A: Live Discovery</h3>
+                          <h3 className="font-bold text-slate-900 text-sm">Mode A: Live Sourcing</h3>
                         </div>
                         <p className="text-xs text-slate-500 mt-0.5">
-                          Hunter.io Domain Search API
+                          {selectedProviderId === 'crawlee_web'
+                            ? 'Crawlee Public Web Crawler'
+                            : 'Hunter.io Domain Search API'}
                         </p>
                       </div>
                     </div>
 
                     <div className="shrink-0">
-                      {hunterConfigured ? (
+                      {selectedProviderId === 'crawlee_web' ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                          Ready (Open Source)
+                        </span>
+                      ) : hunterConfigured ? (
                         <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
                           Configured
@@ -667,12 +689,48 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
                   </div>
 
                   <p className="mt-3 text-xs text-slate-600 leading-relaxed">
-                    Executes real API requests against corporate domains. Enforces credentials and never fabricates live leads.
+                    {selectedProviderId === 'crawlee_web'
+                      ? 'Live Cheerio web crawl. Extracts real corporate firmographics, business signals, and public contacts with source URL citations.'
+                      : 'Executes real API requests against corporate domains. Enforces credentials and never fabricates live leads.'}
                   </p>
+
+                  {/* Provider toggle inside Mode A */}
+                  <div className="mt-3 flex items-center gap-2 pt-2 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOperatingMode('live');
+                        setSelectedProviderId('crawlee_web');
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${
+                        selectedProviderId === 'crawlee_web'
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      Crawlee Crawler (Active)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOperatingMode('live');
+                        setSelectedProviderId('hunter');
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${
+                        selectedProviderId === 'hunter'
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      Hunter.io API
+                    </button>
+                  </div>
                 </div>
 
                 <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                  <span>Credit Cost: 1 credit / domain</span>
+                  <span>Credit Cost: {selectedProviderId === 'crawlee_web' ? '0 credits (Self-hosted)' : '1 credit / domain'}</span>
                   {operatingMode === 'live' && (
                     <span className="text-indigo-600 font-bold flex items-center gap-1">
                       <Check className="h-3.5 w-3.5" /> Selected
@@ -808,8 +866,8 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
             </div>
           )}
 
-          {/* Warning if Live mode selected but Hunter key missing */}
-          {operatingMode === 'live' && !hunterConfigured && (
+          {/* Warning if Live mode selected with Hunter but key missing */}
+          {operatingMode === 'live' && selectedProviderId === 'hunter' && !hunterConfigured && (
             <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 animate-in fade-in">
               <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 mt-0.5" />
               <div className="space-y-1">
@@ -817,10 +875,23 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
                   Real API Credentials Required: HUNTER_API_KEY is not configured
                 </strong>
                 <p className="leading-relaxed text-amber-800">
-                  Live discovery communicates with external provider endpoints and cannot run without a valid Hunter.io key.
-                  To protect data integrity, LeadForge AI will never pretend mock results are live results.
-                  Configure <code className="bg-amber-100 px-1 py-0.5 rounded text-amber-900 font-mono">HUNTER_API_KEY</code> in your environment,
-                  or switch to <button onClick={() => setOperatingMode('dry_run')} className="underline font-bold text-amber-900">Mode B: Dry-Run Simulation</button> or <button onClick={() => setOperatingMode('demo')} className="underline font-bold text-amber-900">Mode C: Demo Sandbox</button>.
+                  Hunter.io communicates with external paid endpoints and cannot run without a valid API key.
+                  To source real leads without external API keys, switch to{' '}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedProviderId('crawlee_web')}
+                    className="underline font-bold text-amber-950 hover:text-black cursor-pointer"
+                  >
+                    Crawlee Web Crawler
+                  </button>{' '}
+                  (open-source, self-hosted web crawling), or use{' '}
+                  <button
+                    type="button"
+                    onClick={() => setOperatingMode('dry_run')}
+                    className="underline font-bold text-amber-950 hover:text-black cursor-pointer"
+                  >
+                    Mode B: Dry-Run Simulation
+                  </button>.
                 </p>
               </div>
             </div>
@@ -839,20 +910,51 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
               className="space-y-4"
             >
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-end">
-                {/* Domain input */}
+                {/* Domain or Crawl Profile input */}
                 <div className="lg:col-span-5 space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                    <Globe className="h-3.5 w-3.5 text-indigo-600" />
-                    Target Company Domain
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={domainInput}
-                      onChange={(e) => setDomainInput(e.target.value)}
-                      placeholder="e.g. stripe.com or ramp.com"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    />
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                      <Globe className="h-3.5 w-3.5 text-indigo-600" />
+                      Target Company Domain
+                    </label>
+                    {selectedProviderId === 'crawlee_web' && crawlProfiles.length > 0 && (
+                      <span className="text-[10px] text-indigo-600 font-medium">
+                        Profile presets available
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={domainInput}
+                        onChange={(e) => setDomainInput(e.target.value)}
+                        placeholder="e.g. stripe.com or ramp.com"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                    </div>
+                    {selectedProviderId === 'crawlee_web' && crawlProfiles.length > 0 && (
+                      <select
+                        value={selectedProfileId}
+                        onChange={(e) => {
+                          const pId = e.target.value;
+                          setSelectedProfileId(pId);
+                          const prof = crawlProfiles.find((p) => p.id === pId);
+                          if (prof && prof.allowedDomains && prof.allowedDomains[0]) {
+                            setDomainInput(prof.allowedDomains[0]);
+                          }
+                        }}
+                        className="rounded-xl border border-slate-200 bg-slate-50/70 px-2.5 py-2 text-xs text-slate-700 focus:bg-white focus:outline-none cursor-pointer max-w-[140px] truncate"
+                        title="Select Crawl Profile Preset"
+                      >
+                        <option value="">Presets...</option>
+                        {crawlProfiles.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                 </div>
 
@@ -1408,7 +1510,8 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
                   const isSelected = selectedIds.has(cand.id);
                   const isEligible =
                     cand.status === 'staged' &&
-                    (cand.dedupStatus === 'new' || cand.dedupStatus === 'same_company_existing');
+                    (cand.dedupStatus === 'new' || cand.dedupStatus === 'same_company_existing') &&
+                    Boolean(cand.email);
 
                   return (
                     <tr
@@ -1460,6 +1563,20 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
                           <Building className="h-3 w-3 text-slate-400" />
                           {cand.companyDomain}
                         </div>
+                        {cand.sourceUrls && cand.sourceUrls[0] && (
+                          <div className="mt-0.5">
+                            <a
+                              href={cand.sourceUrls[0]}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[10px] text-slate-500 hover:text-indigo-600 truncate max-w-[170px]"
+                              title={`Source Citation: ${cand.sourceUrls[0]}`}
+                            >
+                              <Globe className="h-2.5 w-2.5 shrink-0 text-slate-400" />
+                              <span className="truncate">{cand.sourceUrls[0].replace(/^https?:\/\//, '')}</span>
+                            </a>
+                          </div>
+                        )}
                       </td>
 
                       {/* Email & Verification */}

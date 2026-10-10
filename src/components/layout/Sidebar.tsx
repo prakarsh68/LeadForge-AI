@@ -11,6 +11,7 @@ import {
   X,
   Compass,
   Send,
+  Settings,
 } from 'lucide-react';
 import type { ViewType, IcpProfile } from '../../types';
 
@@ -40,14 +41,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ? `$${(pipelineTotal / 1000000).toFixed(1)}M`
       : `$${Math.round(pipelineTotal / 1000)}k`;
 
-  const navItems: { id: ViewType; label: string; icon: React.ElementType; badge?: string }[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'icp', label: 'ICP Setup', icon: Target },
-    { id: 'discovery', label: 'Discovery Engine', icon: Compass, badge: 'New' },
-    { id: 'leads', label: 'Leads', icon: Users, badge: `${leadsCount}` },
-    { id: 'pipeline', label: 'Pipeline', icon: Kanban, badge: formattedPipeline },
-    { id: 'outreach', label: 'Outreach & CRM', icon: Send, badge: 'Phase 5' },
-    { id: 'knowledge', label: 'Knowledge Base', icon: BookOpen, badge: `${docsCount} docs` },
+  const navSections: {
+    title: string;
+    items: { id: ViewType; label: string; icon: React.ElementType; badge?: string }[];
+  }[] = [
+    {
+      title: 'Overview',
+      items: [
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      ],
+    },
+    {
+      title: 'Prospecting',
+      items: [
+        { id: 'discovery', label: 'Discovery Engine', icon: Compass, badge: 'Real Sourcing' },
+        { id: 'leads', label: 'Leads', icon: Users, badge: `${leadsCount}` },
+        { id: 'icp', label: 'ICP Setup', icon: Target },
+      ],
+    },
+    {
+      title: 'Sales',
+      items: [
+        { id: 'pipeline', label: 'Pipeline', icon: Kanban, badge: formattedPipeline },
+        { id: 'outreach', label: 'Outreach & CRM', icon: Send },
+      ],
+    },
+    {
+      title: 'Knowledge',
+      items: [
+        { id: 'knowledge', label: 'Knowledge Base', icon: BookOpen, badge: `${docsCount} docs` },
+      ],
+    },
+    {
+      title: 'Settings',
+      items: [
+        { id: 'settings', label: 'Source Profiles & Config', icon: Settings },
+      ],
+    },
   ];
 
   return (
@@ -112,62 +142,64 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Navigation Section */}
-        <div className="flex-1 overflow-y-auto px-4 py-5 space-y-6">
-          <div>
-            <div className="px-3 pb-2 text-[11px] font-bold tracking-wider text-slate-400 uppercase">
-              Core Platform
-            </div>
-            <nav className="space-y-1">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = currentView === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      onSelectView(item.id);
-                      onCloseMobile();
-                    }}
-                    className={`group relative flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-150 cursor-pointer ${
-                      isActive
-                        ? 'bg-indigo-50/80 text-indigo-900 font-semibold border border-indigo-200/80 shadow-2xs'
-                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
-                          isActive
-                            ? 'bg-indigo-600 text-white shadow-xs'
-                            : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200/70 group-hover:text-slate-800'
-                        }`}
-                      >
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <span>{item.label}</span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      {item.badge && (
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
+          {navSections.map((section) => (
+            <div key={section.title} className="space-y-1">
+              <div className="px-3 pb-1 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                {section.title}
+              </div>
+              <nav className="space-y-0.5">
+                {section.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = currentView === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        onSelectView(item.id);
+                        onCloseMobile();
+                      }}
+                      className={`group relative flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition-all duration-150 cursor-pointer ${
+                        isActive
+                          ? 'bg-indigo-50/90 text-indigo-900 font-semibold border border-indigo-200/80 shadow-2xs'
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors ${
                             isActive
-                              ? 'bg-indigo-100 text-indigo-700 border border-indigo-200'
-                              : 'bg-slate-100 text-slate-600 border border-slate-200'
+                              ? 'bg-indigo-600 text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200/70 group-hover:text-slate-800'
                           }`}
                         >
-                          {item.badge}
-                        </span>
-                      )}
-                      {isActive && (
-                        <ChevronRight className="h-4 w-4 text-indigo-600 animate-in fade-in" />
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
+                          <Icon className="h-3.5 w-3.5" />
+                        </div>
+                        <span className="truncate">{item.label}</span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {item.badge && (
+                          <span
+                            className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${
+                              isActive
+                                ? 'bg-indigo-100 text-indigo-700 border border-indigo-200'
+                                : 'bg-slate-100 text-slate-600 border border-slate-200'
+                            }`}
+                          >
+                            {item.badge}
+                          </span>
+                        )}
+                        {isActive && (
+                          <ChevronRight className="h-3.5 w-3.5 text-indigo-600 animate-in fade-in" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          ))}
 
           {/* Active ICP Preset Card */}
           <div

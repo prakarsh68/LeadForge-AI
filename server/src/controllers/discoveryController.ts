@@ -1,5 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { discoveryService } from '../services/discoveryService.js';
+import { CrawlProfileService } from '../services/discovery/crawlProfileService.js';
+import { CrawleeCrawlRunnerService } from '../services/discovery/crawleeCrawlRunnerService.js';
 
 export const discoveryController = {
   getProviders(_req: Request, res: Response, next: NextFunction): void {
@@ -16,7 +18,7 @@ export const discoveryController = {
 
   async startJob(req: Request, res: Response, _next: NextFunction): Promise<void> {
     try {
-      const { provider, domain, limit, targetRoles, async: isAsync } = req.body;
+      const { provider, domain, limit, targetRoles, profileId, async: isAsync } = req.body;
       const shouldRunAsync = isAsync === true || req.query.async === 'true';
 
       const result = await discoveryService.startJob(
@@ -25,6 +27,7 @@ export const discoveryController = {
           domain,
           limit: limit !== undefined ? Number(limit) : undefined,
           targetRoles,
+          profileId,
         },
         { async: shouldRunAsync }
       );
@@ -269,6 +272,103 @@ export const discoveryController = {
       res.status(500).json({
         success: false,
         error: error.message || 'Failed to cleanup demo data.',
+      });
+    }
+  },
+
+  // Crawlee Source Profile and Crawling Handlers
+  getCrawlProfiles(_req: Request, res: Response, next: NextFunction): void {
+    try {
+      const profiles = CrawlProfileService.getAllProfiles();
+      res.status(200).json({
+        success: true,
+        data: profiles,
+        meta: { count: profiles.length },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  saveCrawlProfile(req: Request, res: Response, _next: NextFunction): void {
+    try {
+      const profile = CrawlProfileService.saveProfile(req.body);
+      res.status(200).json({
+        success: true,
+        data: profile,
+        message: `Crawl source profile "${profile.name}" saved successfully.`,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message || 'Failed to save crawl source profile.',
+      });
+    }
+  },
+
+  deleteCrawlProfile(req: Request, res: Response, _next: NextFunction): void {
+    try {
+      const { id } = req.params;
+      const deleted = CrawlProfileService.deleteProfile(id);
+      if (!deleted) {
+        res.status(404).json({ success: false, error: `Profile not found: ${id}` });
+        return;
+      }
+      res.status(200).json({ success: true, message: `Profile ${id} deleted.` });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to delete crawl source profile.',
+      });
+    }
+  },
+
+  async startCrawleeCrawl(req: Request, res: Response, _next: NextFunction): Promise<void> {
+    try {
+      const { domain, profileId, maxPages, crawlDepth } = req.body;
+      const result = await CrawleeCrawlRunnerService.executeCrawl({
+        customDomain: domain,
+        profileId,
+        maxPages: maxPages ? Number(maxPages) : undefined,
+        crawlDepth: crawlDepth ? Number(crawlDepth) : undefined,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: result,
+        message: `Crawlee crawl finished: ${result.companiesObserved} companies, ${result.signalsExtracted} signals, ${result.candidatesStaged} candidates staged.`,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message || 'Crawlee crawl execution failed.',
+      });
+    }
+  },
+
+  runCrawleeDryRun(req: Request, res: Response, _next: NextFunction): void {
+    try {
+      const { domain, profileId, maxPages, crawlDepth } = req.body;
+      if (!domain) {
+        res.status(400).json({ success: false, error: 'Domain is required for dry-run simulation.' });
+        return;
+      }
+
+      const result = CrawleeCrawlRunnerService.runDryRun({
+        domain,
+        profileId,
+        maxPages: maxPages ? Number(maxPages) : undefined,
+        crawlDepth: crawlDepth ? Number(crawlDepth) : undefined,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message || 'Crawlee dry-run failed.',
       });
     }
   },

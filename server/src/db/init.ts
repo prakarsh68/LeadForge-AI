@@ -349,6 +349,25 @@ export function initializeDatabase(customDb?: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_source_registry_enabled ON source_registry_entries(is_enabled);
     CREATE INDEX IF NOT EXISTS idx_source_registry_provider ON source_registry_entries(provider_type);
 
+    -- Crawlee Source Profiles for Bounded Web Crawling
+    CREATE TABLE IF NOT EXISTS crawl_source_profiles (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      start_urls TEXT NOT NULL DEFAULT '[]',
+      allowed_domains TEXT NOT NULL DEFAULT '[]',
+      crawl_depth INTEGER NOT NULL DEFAULT 2,
+      max_pages INTEGER NOT NULL DEFAULT 50,
+      concurrency INTEGER NOT NULL DEFAULT 2,
+      delay_ms INTEGER NOT NULL DEFAULT 1000,
+      extraction_types TEXT NOT NULL DEFAULT '["company_metadata","hiring_signals","technology_signals","public_contacts"]',
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_crawl_profiles_active ON crawl_source_profiles(is_active);
+
     CREATE TABLE IF NOT EXISTS source_observations (
       id TEXT PRIMARY KEY,
       source_id TEXT NOT NULL REFERENCES source_registry_entries(id) ON DELETE CASCADE,
@@ -1262,6 +1281,18 @@ export function initializeDatabase(customDb?: Database.Database): void {
         rateLimits: { requestsPerMinute: 1000, dailyQuota: 100000 },
         metadata: { isDemo: true, sourceTier: 'demo' },
       },
+      {
+        id: 'crawlee_web',
+        name: 'Crawlee Public Web Intelligence',
+        providerType: 'crawlee_web',
+        capabilities: ['company_discovery', 'hiring_signals', 'technology_signals'],
+        isEnabled: 1,
+        isConfigured: 1,
+        healthStatus: 'healthy',
+        costModel: { perRecord: 0.00, perVerification: 0.00, currency: 'USD' },
+        rateLimits: { requestsPerMinute: 60, dailyQuota: 2000 },
+        metadata: { supportedSearch: ['startUrls', 'allowedDomains', 'customDomain'], sourceTier: 'open_source_crawler' },
+      },
     ];
 
     const insertSourcesTx = db.transaction((sources) => {
@@ -1282,6 +1313,51 @@ export function initializeDatabase(customDb?: Database.Database): void {
     });
 
     insertSourcesTx(defaultSources);
+  }
+
+  // Ensure crawlee_web is registered in existing databases
+  db.prepare(`
+    INSERT OR IGNORE INTO source_registry_entries (
+      id, name, provider_type, capabilities, is_enabled, is_configured,
+      health_status, cost_model, rate_limits, metadata, created_at, updated_at
+    ) VALUES (
+      'crawlee_web',
+      'Crawlee Public Web Intelligence',
+      'crawlee_web',
+      '["company_discovery","hiring_signals","technology_signals"]',
+      1,
+      1,
+      'healthy',
+      '{"perRecord":0.00,"perVerification":0.00,"currency":"USD"}',
+      '{"requestsPerMinute":60,"dailyQuota":2000}',
+      '{"supportedSearch":["startUrls","allowedDomains","customDomain"],"sourceTier":"open_source_crawler"}',
+      datetime('now'),
+      datetime('now')
+    )
+  `).run();
+
+  // Seed default crawl source profile if empty
+  const profileCount = (db.prepare('SELECT COUNT(*) as count FROM crawl_source_profiles').get() as { count: number }).count;
+  if (profileCount === 0) {
+    db.prepare(`
+      INSERT INTO crawl_source_profiles (
+        id, name, description, start_urls, allowed_domains, crawl_depth,
+        max_pages, concurrency, delay_ms, extraction_types, is_active,
+        created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+    `).run(
+      'sp-default-tech-hub',
+      'Permitted Tech Companies & Public Sitemaps',
+      'Verified crawl profile targeting public corporate documentation, leadership, and careers pages.',
+      JSON.stringify(['https://ramp.com', 'https://stripe.com']),
+      JSON.stringify(['ramp.com', 'stripe.com']),
+      2,
+      25,
+      2,
+      1000,
+      JSON.stringify(['company_metadata', 'hiring_signals', 'technology_signals', 'public_contacts']),
+      1
+    );
   }
 
   // Phase 6A: Seed sample business signals if empty

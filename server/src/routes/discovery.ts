@@ -17,4 +17,11 @@ discoveryRouter.get('/discovery/candidates', discoveryController.getAllCandidate
 discoveryRouter.post('/discovery/candidates/:id/ingest', discoveryController.ingestCandidate);
 discoveryRouter.post('/discovery/candidates/ingest-batch', discoveryController.ingestBatch);
 
+// Crawlee Web Crawler Endpoints
+discoveryRouter.get('/discovery/crawlee/profiles', discoveryController.getCrawlProfiles);
+discoveryRouter.post('/discovery/crawlee/profiles', discoveryController.saveCrawlProfile);
+discoveryRouter.delete('/discovery/crawlee/profiles/:id', discoveryController.deleteCrawlProfile);
+discoveryRouter.post('/discovery/crawlee/crawl', discoveryController.startCrawleeCrawl);
+discoveryRouter.post('/discovery/crawlee/dry-run', discoveryController.runCrawleeDryRun);
+
 

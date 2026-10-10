@@ -35,6 +35,9 @@ import type {
   SourcingOptimizationWeight,
   SourcingExperiment,
   AgenticSourcingStatus,
+  CrawlSourceProfile,
+  CrawleeDryRunResult,
+  CrawlJobResult,
 } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
@@ -378,6 +381,7 @@ export const api = {
     domain: string;
     limit?: number;
     targetRoles?: string[];
+    profileId?: string;
     async?: boolean;
   }): Promise<{ job: DiscoveryJob; candidates: DiscoveredCandidate[] }> {
     return request<{ job: DiscoveryJob; candidates: DiscoveredCandidate[] }>('/api/discovery/jobs', {
@@ -867,6 +871,52 @@ export const api = {
 
   async getSourcingExperiments(): Promise<SourcingExperiment[]> {
     return request<SourcingExperiment[]>('/api/agentic-sourcing/experiments');
+  },
+
+  // Crawlee Web Sourcing Engine
+  async getCrawlProfiles(): Promise<CrawlSourceProfile[]> {
+    return request<CrawlSourceProfile[]>('/api/discovery/crawlee/profiles');
+  },
+
+  async getCrawlProfile(id: string): Promise<CrawlSourceProfile> {
+    return request<CrawlSourceProfile>(`/api/discovery/crawlee/profiles/${encodeURIComponent(id)}`);
+  },
+
+  async saveCrawlProfile(data: Partial<CrawlSourceProfile>): Promise<CrawlSourceProfile> {
+    return request<CrawlSourceProfile>('/api/discovery/crawlee/profiles', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteCrawlProfile(id: string): Promise<boolean> {
+    return request<boolean>(`/api/discovery/crawlee/profiles/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async runCrawleeDryRun(data: {
+    domain: string;
+    maxPages?: number;
+    crawlDepth?: number;
+    profileId?: string;
+  }): Promise<CrawleeDryRunResult> {
+    return request<CrawleeDryRunResult>('/api/discovery/crawlee/dry-run', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async startCrawleeCrawl(data: {
+    profileId?: string;
+    domain?: string;
+    maxPages?: number;
+    crawlDepth?: number;
+  }): Promise<CrawlJobResult> {
+    return request<CrawlJobResult>('/api/discovery/crawlee/crawl', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   },
 };
 

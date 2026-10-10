@@ -1,6 +1,7 @@
 import type { DiscoveryProvider } from './types.js';
 import { HunterDiscoveryProvider } from './hunterProvider.js';
 import { MockDiscoveryProvider } from './mockProvider.js';
+import { CrawleeDiscoveryProvider } from './crawleeProvider.js';
 import type { DiscoveryProviderStatusDTO } from '../../types/index.js';
 
 class ProviderRegistry {
@@ -8,6 +9,7 @@ class ProviderRegistry {
 
   constructor() {
     this.register(new HunterDiscoveryProvider());
+    this.register(new CrawleeDiscoveryProvider());
     this.register(new MockDiscoveryProvider());
   }
 

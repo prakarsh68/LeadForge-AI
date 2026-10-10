@@ -1,4 +1,4 @@
-export type ViewType = 'dashboard' | 'icp' | 'discovery' | 'leads' | 'pipeline' | 'knowledge' | 'outreach';
+export type ViewType = 'dashboard' | 'icp' | 'discovery' | 'leads' | 'pipeline' | 'knowledge' | 'outreach' | 'settings';
 
 export type LeadStatus = 'New' | 'Contacted' | 'Qualified' | 'Proposal' | 'Won' | 'Disqualified';
 
@@ -866,6 +866,62 @@ export interface AgenticSourcingStatus {
   optimizationWeightsCount: number;
   experimentsCount: number;
 }
+
+export interface CrawlSourceProfile {
+  id: string;
+  name: string;
+  description: string;
+  startUrls: string[];
+  allowedDomains: string[];
+  crawlDepth: number;
+  maxPages: number;
+  concurrency: number;
+  delayMs: number;
+  extractionTypes: string[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CrawleeDryRunResult {
+  isDryRun: true;
+  provider: 'crawlee_web';
+  targetDomain: string;
+  profileId?: string;
+  startUrls: string[];
+  allowedDomains: string[];
+  maxPages: number;
+  crawlDepth: number;
+  securityCheck: {
+    passed: boolean;
+    issues: string[];
+  };
+  projectedPlan: {
+    estimatedPages: number;
+    estimatedCompanies: number;
+    estimatedSignals: number;
+    estimatedCandidates: number;
+    costIncurred: 0;
+  };
+  filteringFunnelPreview: Array<{ stage: string; survivingCount: number; dropReason?: string }>;
+  notes: string;
+}
+
+export interface CrawlJobResult {
+  jobId: string;
+  provider: 'crawlee_web';
+  status: 'completed' | 'failed' | 'partially_completed';
+  pagesAttempted: number;
+  pagesFetched: number;
+  pagesSkipped: number;
+  companiesObserved: number;
+  signalsExtracted: number;
+  candidatesStaged: number;
+  durationMs: number;
+  errorMessage?: string;
+  extractedRecords?: any[];
+}
+
 
 
 

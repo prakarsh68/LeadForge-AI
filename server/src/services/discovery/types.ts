@@ -45,6 +45,9 @@ export interface PeopleDiscoveryQuery {
   targetRoles?: string[];
   seniorityLevels?: string[];
   limit?: number;
+  jobId?: string;
+  profileId?: string;
+  allowLocalhost?: boolean;
 }
 
 export interface DiscoveredPersonCandidate {
